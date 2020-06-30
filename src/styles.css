@@ -1,0 +1,13 @@
+.zr-virtual-list {
+  width: 100%;
+}
+
+.virtual-item-wrapper {
+  position: relative;
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+.virtual-item-hidden {
+  display: none;
+}
