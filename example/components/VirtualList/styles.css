@@ -8,6 +8,6 @@
   transform: translateZ(0);
 }
 
-.virtual-item-hidden {
+.virtual-item-wrapper.hidden > .virtual-item-content {
   display: none;
 }
