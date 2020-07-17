@@ -1,6 +1,5 @@
-#scroll-container {
+.scroll-container {
   height: 500px;
-  overflow-y: auto;
 }
 
 .list {

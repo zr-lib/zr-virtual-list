@@ -1,5 +1,12 @@
 .zr-virtual-list {
   width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.virtual-wrapper {
+  width: calc(100% + 10px);
+  padding-right: 10px;
 }
 
 .virtual-item-wrapper {

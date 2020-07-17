@@ -4,10 +4,9 @@ import './styles.css';
 
 const List = lazy(() => import('./components/List'));
 
-const lengthList = [20, 100, 500, 1000, 3000, 10000];
+const countList = [10, 20, 50, 100];
 
 export default function App() {
-  const [visible, setVisible] = useState(true);
   const [renderCount, setRenderCount] = useState(20);
 
   const onDatalengthChange = (count: number) => {
@@ -15,9 +14,10 @@ export default function App() {
   };
 
   const renderRadio = () => (
-    <p>
+    <div className="render-count">
+      <p>dataLength: 10000</p>
       renderCount:
-      {lengthList.map((count) => (
+      {countList.map((count) => (
         <span
           key={count}
           className={`radio ${renderCount === count ? 'checked' : ''}`}
@@ -26,21 +26,16 @@ export default function App() {
           {count}
         </span>
       ))}
-    </p>
+    </div>
   );
 
   return (
     <div className="App">
       <h1>zr-virtual-list example</h1>
-      <p>
-        <button className="visible-toggle" onClick={() => setVisible(!visible)}>
-          {visible ? '隐藏' : '显示'}
-        </button>
-      </p>
       {renderRadio()}
       <Suspense fallback="">
         <KeepAlive name="list">
-          {(props) => visible && <List {...props} renderCount={renderCount} />}
+          {(props) => <List {...props} renderCount={renderCount} />}
         </KeepAlive>
       </Suspense>
     </div>

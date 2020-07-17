@@ -12,7 +12,7 @@ export interface VirtualListProps {
   className?: string;
   renderCount?: number; // 一次渲染的数量
   onScroll?: (scrollTop: number) => void; // 滚动回调
-  getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+  getScrollContainer?: () => HTMLElement; // 滚动容器，默认 body
   onStartIndexChange?: (index: number) => void; // 返回开始切割的位置
 }
 
@@ -22,13 +22,13 @@ export interface VirtualListProps {
  * @param {*} props.itemKey: string; // 唯一 key
  * @param {*} props.dataList: any[]; // 列表数据
  * @param {*} props.children: (item: any, index: number) => React.ReactNode;
- * @param {*} defaultStartIndex?: number; // 默认开始切割的位置
- * @param {*} defaultScrollTop?: number; // 默认的滚动位置
- * @param {*} className?: string;
- * @param {*} renderCount?: number; // 一次渲染的数量
- * @param {*} onScroll?: (scrollTop: number) => void; // 滚动回调
- * @param {*} getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
- * @param {*} onStartIndexChange?: (index: number) => void; // 返回开始切割的位置
+ * @param {*} props.defaultStartIndex?: number; // 默认开始切割的位置
+ * @param {*} props.defaultScrollTop?: number; // 默认的滚动位置
+ * @param {*} props.className?: string;
+ * @param {*} props.renderCount?: number; // 一次渲染的数量
+ * @param {*} props.onScroll?: (scrollTop: number) => void; // 滚动回调
+ * @param {*} props.getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+ * @param {*} props.onStartIndexChange?: (index: number) => void; // 返回开始切割的位置
  */
 const VirtualList: React.FC<VirtualListProps> = ({
   itemKey,
@@ -44,8 +44,8 @@ const VirtualList: React.FC<VirtualListProps> = ({
 }) => {
   const virtualList = useRef<HTMLDivElement>(null);
   const scrollContainer = useRef<HTMLElement>(null); // 滚动容器
-  const placeholder = useRef<HTMLDivElement>(null); // 前面不显示部分的占位
-  const startIndex = useRef(0); // 默认开始切割的位置
+  const startIndex = useRef(0); // 开始切割的位置
+  const scrollTop = useRef(0); // 滚动位置
   const itemScrollHeight = useRef(0); // 每个item占据的平均高度
   const [renderedDataList, setRenderedDataList] = useState<any[]>([]); // 已渲染的部分
 
@@ -55,30 +55,28 @@ const VirtualList: React.FC<VirtualListProps> = ({
   }
 
   useEffect(() => {
+    if (renderCount < 10) console.warn('建议[renderCount] >= 10');
     if (Array.isArray(dataList)) {
       startIndex.current = startIndex.current || defaultStartIndex || 0;
-      onRenderHandler();
+      init();
+      scrollListener('add');
+      onRenderHandler(startIndex.current);
+
       if (defaultScrollTop) {
         setTimeout(() => {
-          scrollContainer.current.scrollTop = defaultScrollTop;
+          scrollContainer.current.scrollTop = defaultScrollTop || 0;
         }, 0);
       }
     }
-  }, [dataList, defaultStartIndex, defaultScrollTop]);
-
-  useEffect(() => {
-    init();
-    scrollListener('add');
 
     return () => {
       scrollListener('remove');
     };
-  }, [dataList]);
+  }, [dataList, defaultStartIndex, defaultScrollTop, renderCount]);
 
   // 初始化
   const init = () => {
     scrollContainer.current = getScrollWrapper();
-    startIndexChange(startIndex.current);
     setTimeout(() => {
       itemScrollHeight.current =
         scrollContainer.current.scrollHeight / renderCount;
@@ -86,17 +84,20 @@ const VirtualList: React.FC<VirtualListProps> = ({
   };
 
   // 根据 startIndex 切割需要渲染的部分
-  const onRenderHandler = useCallback(() => {
-    setRenderedDataList(() => {
-      const newList = dataList
-        .slice(startIndex.current, startIndex.current + renderCount)
-        .map((item, index) => ({
-          ...item,
-          index: startIndex.current + index,
-        }));
-      return newList;
-    });
-  }, [dataList, renderCount]);
+  const onRenderHandler = useCallback(
+    (_startIndex: number) => {
+      setRenderedDataList(() => {
+        const newList = dataList
+          .slice(_startIndex, _startIndex + renderCount)
+          .map((item, index) => ({
+            ...item,
+            index: _startIndex + index,
+          }));
+        return newList;
+      });
+    },
+    [dataList, renderCount]
+  );
 
   // 滚动容器
   const getScrollWrapper = () => {
@@ -119,34 +120,33 @@ const VirtualList: React.FC<VirtualListProps> = ({
   };
 
   const scrollHandler = () => {
-    const { scrollTop } = getScrollWrapper();
+    const { scrollTop: _scrollTop } = getScrollWrapper();
     const allItems = document.querySelectorAll('.virtual-item-wrapper');
     const firstVisibleItem = Array.from(allItems).find(
-      (item: HTMLDivElement) => item.offsetTop >= scrollTop
+      (item: HTMLDivElement) => item.offsetTop >= _scrollTop
     );
 
     if (firstVisibleItem) {
-      const _startIndex = firstVisibleItem.getAttribute('item-index');
-      // placeholder.current.style.height = scrollTop + 'px';
-      startIndexChange(Number(_startIndex));
+      const itemIndex = firstVisibleItem.getAttribute('item-index');
+      startIndexChange(Number(itemIndex));
     }
 
-    onScrollChange(scrollTop);
+    onScrollChange(_scrollTop);
   };
 
   const onScrollChange = useThrottle((_scrollTop: number) => {
+    scrollTop.current = _scrollTop;
     if (onScroll) onScroll(_scrollTop);
   });
 
-  const startIndexChange = useCallback(
-    (_startIndex: number) => {
-      startIndex.current = _startIndex > 10 ? _startIndex - 10 : 0;
-      virtualList.current.setAttribute('start-index', `${startIndex.current}`);
-      onRenderHandler();
-      if (onStartIndexChange) onStartIndexChange(startIndex.current);
-    },
-    [dataList, renderCount]
-  );
+  const startIndexChange = (itemIndex: number) => {
+    // itemIndex 往前推的数量
+    const leftCount = renderCount > 10 ? 10 : renderCount / 2;
+    startIndex.current = itemIndex > leftCount ? itemIndex - leftCount : 0;
+    virtualList.current.setAttribute('start-index', `${startIndex.current}`);
+    onRenderHandler(startIndex.current);
+    if (onStartIndexChange) onStartIndexChange(startIndex.current);
+  };
 
   const getItemKey = useCallback(
     (item: any) => {
@@ -163,7 +163,7 @@ const VirtualList: React.FC<VirtualListProps> = ({
       render-count={renderCount}
       data-length={dataList.length}
     >
-      <div ref={placeholder} />
+      {/* <div className="virtual-wrapper"> */}
       {renderedDataList.map((item) => (
         <div
           key={getItemKey(item)}
@@ -173,19 +173,9 @@ const VirtualList: React.FC<VirtualListProps> = ({
           {children(item, item.index)}
         </div>
       ))}
+      {/* </div> */}
     </div>
   );
 };
+
 export default VirtualList;
-// export default React.memo(
-//   VirtualList,
-//   (prevProps: VirtualListProps, nextProps: VirtualListProps) => {
-//     if (
-//       prevProps.dataList.length !== nextProps.dataList.length ||
-//       prevProps.dataList[0]?.index !== nextProps.dataList[0]?.index
-//     ) {
-//       return false;
-//     }
-//     return true;
-//   }
-// );

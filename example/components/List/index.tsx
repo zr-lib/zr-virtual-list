@@ -20,9 +20,8 @@ const List: React.FC<ListProps> = ({
   scrollRestore,
   getKeepAlive,
 }) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const scrollTop = useRef(0);
-  const defaultStartIndex = useRef(2);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [startIndex, setStartIndex] = useState(0);
   const [data, setData] = useState<any[] | undefined>([]);
 
   useEffect(() => {
@@ -38,19 +37,13 @@ const List: React.FC<ListProps> = ({
     const _scrollTop = scrollRestore();
     const _state = stateRestore();
     console.log(_scrollTop, _state);
-    scrollTop.current = _scrollTop || 0;
-    defaultStartIndex.current = _state?.startIndex || 0;
-    setTimeout(() => {
-      // document.body.scrollTop = _scrollTop;
-      // document.documentElement.scrollTop = _scrollTop;
-      scrollContainerRef.current.scrollTop = _scrollTop;
-    }, 0);
+    setScrollTop(_scrollTop || 0);
+    setStartIndex(_state?.startIndex || 0);
   };
 
   const onScroll = (_scrollTop: number) => {
-    scrollTop.current = _scrollTop;
-    console.log(scrollTop.current);
-    beforeRouteLeave(scrollTop.current, {});
+    setScrollTop(_scrollTop);
+    beforeRouteLeave(_scrollTop, {});
   };
 
   const countHandler = (index: number, type: 'increment' | 'decrement') => {
@@ -70,34 +63,33 @@ const List: React.FC<ListProps> = ({
   });
 
   return (
-    <div id="scroll-container" ref={scrollContainerRef}>
-      <VirtualList
-        itemKey="id"
-        dataList={data}
-        // renderCount={renderCount}
-        // defaultStartIndex={defaultStartIndex.current}
-        getScrollContainer={() => document.getElementById('scroll-container')}
-        onScroll={onScroll}
-        onStartIndexChange={onStartIndexChange}
-      >
-        {(item: Item, index) => (
-          <div className={`item ${index % 2 === 0 ? 'item-2n' : ''}`}>
-            <button onClick={() => console.log(item, index)}>item</button>
-            <p>
-              <button onClick={() => countHandler(index, 'decrement')}>
-                count--
-              </button>
-              &nbsp;
-              <button onClick={() => countHandler(index, 'increment')}>
-                count++
-              </button>
-            </p>
-            <p>id: {item.id}</p>
-            <p>count: {item.count}</p>
-          </div>
-        )}
-      </VirtualList>
-    </div>
+    <VirtualList
+      itemKey="id"
+      className="scroll-container"
+      dataList={data}
+      renderCount={renderCount}
+      defaultScrollTop={scrollTop}
+      defaultStartIndex={startIndex}
+      getScrollContainer={() => document.querySelector('.scroll-container')}
+      onScroll={onScroll}
+      onStartIndexChange={onStartIndexChange}
+    >
+      {(item: Item, index) => (
+        <div className={`item ${index % 2 === 0 ? 'item-2n' : ''}`}>
+          <p>
+            <button onClick={() => countHandler(index, 'decrement')}>
+              count--
+            </button>
+            &nbsp;
+            <button onClick={() => countHandler(index, 'increment')}>
+              count++
+            </button>
+          </p>
+          <p>id: {item.id}</p>
+          <p>count: {item.count}</p>
+        </div>
+      )}
+    </VirtualList>
   );
 };
 

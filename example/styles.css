@@ -3,9 +3,13 @@
   text-align: center;
 }
 
+.render-count {
+  margin-bottom: 10px;
+}
+
 .radio {
-  margin: 0 5px;
   padding: 0 4px;
+  margin-left: 6px;
   cursor: pointer;
   user-select: none;
 }
