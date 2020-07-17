@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import useThrottle from '../../utils/useThrottle';
 import useDebounce from '../../utils/useDebounce';
 import './styles.css';
@@ -7,127 +7,98 @@ export interface VirtualListProps {
   itemKey: string; // 唯一 key
   dataList: any[]; // 列表数据
   children: (item: any, index: number) => React.ReactNode;
-  pageSize?: number; // 分页一页的数量（分段切割的段长度）
-  defaultPageIndex?: number; // 默认切割的位置
+  defaultStartIndex?: number; // 默认开始切割的位置
+  defaultScrollTop?: number; // 默认的滚动位置
   className?: string;
-  reachBottom?: number; // 到底部的距离，触发下次加载
-  visibleHeight?: number; // 可视区域范围，默认三个屏幕高度（上中下各一屏）
-  getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+  renderCount?: number; // 一次渲染的数量
   onScroll?: (scrollTop: number) => void; // 滚动回调
-  onLoadMore?: (pageIndex: number) => void;
-  onVisibleChange?: (indexs: number[]) => void; // 返回可见的index集合
+  getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+  onStartIndexChange?: (index: number) => void; // 返回开始切割的位置
 }
 
 /**
  * 长列表虚拟滚动
+ * @description 说明：每次只渲染 renderCount 的数量
  * @param {*} props.itemKey: string; // 唯一 key
  * @param {*} props.dataList: any[]; // 列表数据
  * @param {*} props.children: (item: any, index: number) => React.ReactNode;
- * @param {*} props.pageSize?: number; // 分页一页的数量（分段切割的段长度）
- * @param {*} props.defaultPageIndex?: number; // 默认切割的位置
- * @param {*} props.className?: string;
- * @param {*} props.reachBottom?: number; // 到底部的距离，触发下次加载
- * @param {*} props.visibleHeight?: number; // 可视区域范围，默认三个屏幕高度（上中下各一屏）
- * @param {*} props.getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
- * @param {*} props.onScroll?: (scrollTop: number) => void; // 滚动回调
- * @param {*} props.onLoadMore?: (pageIndex: number) => void;
- * @param {*} props.onVisibleChange?: (indexs: number[]) => void; // 返回可见的index集合
+ * @param {*} defaultStartIndex?: number; // 默认开始切割的位置
+ * @param {*} defaultScrollTop?: number; // 默认的滚动位置
+ * @param {*} className?: string;
+ * @param {*} renderCount?: number; // 一次渲染的数量
+ * @param {*} onScroll?: (scrollTop: number) => void; // 滚动回调
+ * @param {*} getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+ * @param {*} onStartIndexChange?: (index: number) => void; // 返回开始切割的位置
  */
 const VirtualList: React.FC<VirtualListProps> = ({
   itemKey,
   dataList,
   children,
-  pageSize = 100,
-  defaultPageIndex = 0,
+  defaultStartIndex,
+  defaultScrollTop,
   className = '',
-  reachBottom = 200,
-  visibleHeight = 0,
-  getScrollContainer,
+  renderCount = 20,
   onScroll,
-  onLoadMore,
-  onVisibleChange,
+  getScrollContainer,
+  onStartIndexChange,
 }) => {
+  const virtualList = useRef<HTMLDivElement>(null);
   const scrollContainer = useRef<HTMLElement>(null); // 滚动容器
-  const pageIndex = useRef(0); // 当前页码，总页数dataList/pageSize
-  const visibleIndexs = useRef<number[]>([]); // 可见的index集合
-  const prevVisibleIndexs = useRef<number[]>([]); // 上次可见的index集合
-  const _visibleHeight = useRef(0); // 可见的高度
-  const AllitemWrapper = useRef<NodeListOf<Element> | any[]>([]); // 所有的ItemWrapper
+  const placeholder = useRef<HTMLDivElement>(null); // 前面不显示部分的占位
+  const startIndex = useRef(0); // 默认开始切割的位置
+  const itemScrollHeight = useRef(0); // 每个item占据的平均高度
   const [renderedDataList, setRenderedDataList] = useState<any[]>([]); // 已渲染的部分
 
   if (dataList !== undefined && dataList !== null && !Array.isArray(dataList)) {
-    console.warn('list不是数组！');
+    console.warn('[list]不是数组！');
     return <p style={{ color: '#ff5722' }}>list不是数组！</p>;
   }
 
   useEffect(() => {
-    scrollContainer.current = getScrollWrapper();
-
-    _visibleHeight.current =
-      visibleHeight ||
-      scrollContainer.current.offsetHeight * 2 ||
-      window.innerHeight * 2;
-  }, []);
-
-  useEffect(() => {
     if (Array.isArray(dataList)) {
-      // 长度小于 segmentLength，直接渲染
-      if (dataList.length < pageSize) {
-        setRenderedDataList(dataList);
-      } else {
-        setRenderedDataList([]);
-        pageIndex.current =
-          defaultPageIndex < dataList.length / pageSize
-            ? defaultPageIndex
-            : dataList.length / pageSize;
-
-        for (let i = 0; i < pageIndex.current + 1; i++) {
-          segmentRender(i);
-        }
+      startIndex.current = startIndex.current || defaultStartIndex || 0;
+      onRenderHandler();
+      if (defaultScrollTop) {
+        setTimeout(() => {
+          scrollContainer.current.scrollTop = defaultScrollTop;
+        }, 0);
       }
     }
-  }, [dataList]);
-
-  // 按分页长度分段渲染
-  const segmentRender = (index: number) => {
-    const addItems = dataList.slice(index * pageSize, (index + 1) * pageSize);
-    setRenderedDataList((prev) => [...prev, addItems]);
-    if (onLoadMore && index > 0) onLoadMore(index);
-  };
+  }, [dataList, defaultStartIndex, defaultScrollTop]);
 
   useEffect(() => {
-    AllitemWrapper.current = document.querySelectorAll(
-      '.zr-virtual-list .virtual-item-wrapper'
-    );
     init();
     scrollListener('add');
 
     return () => {
       scrollListener('remove');
     };
-  }, [renderedDataList]);
+  }, [dataList]);
 
   // 初始化
   const init = () => {
-    if (AllitemWrapper.current.length < pageSize) {
-      setTimeout(() => {
-        AllitemWrapper.current.forEach((el: Element) => {
-          handlItemWrapper(el);
-        });
-      }, 0);
-    } else {
-      const addItemWrappers: any[] = Array.from(AllitemWrapper.current).slice(
-        AllitemWrapper.current.length - pageSize,
-        AllitemWrapper.current.length
-      );
-      setTimeout(() => {
-        addItemWrappers.forEach((el) => {
-          handlItemWrapper(el);
-        });
-      }, 0);
-    }
+    scrollContainer.current = getScrollWrapper();
+    startIndexChange(startIndex.current);
+    setTimeout(() => {
+      itemScrollHeight.current =
+        scrollContainer.current.scrollHeight / renderCount;
+    }, 0);
   };
 
+  // 根据 startIndex 切割需要渲染的部分
+  const onRenderHandler = useCallback(() => {
+    setRenderedDataList(() => {
+      const newList = dataList
+        .slice(startIndex.current, startIndex.current + renderCount)
+        .map((item, index) => ({
+          ...item,
+          index: startIndex.current + index,
+        }));
+      return newList;
+    });
+  }, [dataList, renderCount]);
+
+  // 滚动容器
   const getScrollWrapper = () => {
     const scrollWrapper =
       getScrollContainer?.() ??
@@ -136,126 +107,85 @@ const VirtualList: React.FC<VirtualListProps> = ({
   };
 
   const scrollListener = (type: 'add' | 'remove') => {
-    if (type === 'add') {
-      if (getScrollContainer) {
-        scrollContainer.current.addEventListener(
-          'scroll',
-          scrollHandler,
-          false
-        );
-      } else {
-        window.addEventListener('scroll', scrollHandler, false);
-      }
+    if (getScrollContainer) {
+      scrollContainer.current[`${type}EventListener`](
+        'scroll',
+        scrollHandler,
+        false
+      );
     } else {
-      if (getScrollContainer) {
-        scrollContainer.current.removeEventListener(
-          'scroll',
-          scrollHandler,
-          false
-        );
-      } else {
-        window.removeEventListener('scroll', scrollHandler, false);
-      }
+      window[`${type}EventListener`]('scroll', scrollHandler, false);
     }
   };
 
   const scrollHandler = () => {
-    const { scrollTop, clientHeight, scrollHeight } = getScrollWrapper();
-    if (
-      scrollHeight - clientHeight - scrollTop <= reachBottom &&
-      pageIndex.current < dataList.length / pageSize
-    ) {
-      pageIndex.current = pageIndex.current + 1;
-      segmentRender(pageIndex.current);
+    const { scrollTop } = getScrollWrapper();
+    const allItems = document.querySelectorAll('.virtual-item-wrapper');
+    const firstVisibleItem = Array.from(allItems).find(
+      (item: HTMLDivElement) => item.offsetTop >= scrollTop
+    );
+
+    if (firstVisibleItem) {
+      const _startIndex = firstVisibleItem.getAttribute('item-index');
+      // placeholder.current.style.height = scrollTop + 'px';
+      startIndexChange(Number(_startIndex));
     }
 
-    onVirtualScroll(scrollTop);
     onScrollChange(scrollTop);
   };
-
-  // 元素滚动
-  const onVirtualScroll = (_scrollTop: number) => {
-    visibleIndexs.current = [];
-    AllitemWrapper.current.forEach((el: Element) => {
-      handlItemWrapper(el);
-    });
-  };
-
-  // ItemWrapper处理
-  const handlItemWrapper = (el: Element) => {
-    const ioWrapper = new IntersectionObserver((entries) => {
-      const wrapper = entries[0].target as HTMLDivElement;
-      const wrapperClientHeight = wrapper?.clientHeight;
-
-      const { top, bottom } = entries[0].boundingClientRect;
-
-      if (
-        entries[0].intersectionRatio > 0 ||
-        (top > 0 && top < _visibleHeight.current) ||
-        (bottom < 0 && bottom > -_visibleHeight.current)
-      ) {
-        wrapper.style.height = '';
-        wrapper.classList.remove('hidden');
-        const index = wrapper.getAttribute('item-index');
-        if (!visibleIndexs.current.includes(Number(index))) {
-          visibleIndexs.current.push(Number(index));
-        }
-      } else {
-        wrapper.style.height = `${wrapperClientHeight}px`;
-        wrapper.classList.add('hidden');
-      }
-
-      updateVisibleIndex();
-      ioWrapper.unobserve(el);
-    });
-    setTimeout(() => ioWrapper.observe(el), 0);
-  };
-
-  // onVisibleChange
-  const updateVisibleIndex = useDebounce(() => {
-    visibleIndexs.current = visibleIndexs.current.sort((x, y) => x - y);
-    // 有监听事件 + 长度大于0 + 与上次不同 => 执行回调
-    if (
-      onVisibleChange &&
-      visibleIndexs.current.length &&
-      visibleIndexs.current.join('') !== prevVisibleIndexs.current.join('')
-    ) {
-      onVisibleChange(visibleIndexs.current);
-    }
-    prevVisibleIndexs.current = visibleIndexs.current;
-  });
 
   const onScrollChange = useThrottle((_scrollTop: number) => {
     if (onScroll) onScroll(_scrollTop);
   });
 
-  // 获取item在dataList里的下标index
-  const getRealIndex = (subIndex, index) => {
-    return subIndex * pageSize + index;
-  };
+  const startIndexChange = useCallback(
+    (_startIndex: number) => {
+      startIndex.current = _startIndex > 10 ? _startIndex - 10 : 0;
+      virtualList.current.setAttribute('start-index', `${startIndex.current}`);
+      onRenderHandler();
+      if (onStartIndexChange) onStartIndexChange(startIndex.current);
+    },
+    [dataList, renderCount]
+  );
+
+  const getItemKey = useCallback(
+    (item: any) => {
+      return itemKey && item[itemKey] ? item[itemKey] : item.index;
+    },
+    [itemKey]
+  );
 
   return (
-    <div className={`zr-virtual-list ${className}`}>
-      {Array.isArray(renderedDataList) &&
-        renderedDataList.map((subDataList, subIndex) =>
-          subDataList.map((item, index) => (
-            <div
-              key={
-                itemKey && item[itemKey]
-                  ? item[itemKey]
-                  : getRealIndex(subIndex, index)
-              }
-              item-index={getRealIndex(subIndex, index)}
-              className="virtual-item-wrapper"
-            >
-              <div className="virtual-item-content">
-                {children(item, getRealIndex(subIndex, index))}
-              </div>
-            </div>
-          ))
-        )}
+    <div
+      ref={virtualList}
+      className={`zr-virtual-list ${className}`}
+      item-key={itemKey}
+      render-count={renderCount}
+      data-length={dataList.length}
+    >
+      <div ref={placeholder} />
+      {renderedDataList.map((item) => (
+        <div
+          key={getItemKey(item)}
+          item-index={item.index}
+          className="virtual-item-wrapper"
+        >
+          {children(item, item.index)}
+        </div>
+      ))}
     </div>
   );
 };
-
 export default VirtualList;
+// export default React.memo(
+//   VirtualList,
+//   (prevProps: VirtualListProps, nextProps: VirtualListProps) => {
+//     if (
+//       prevProps.dataList.length !== nextProps.dataList.length ||
+//       prevProps.dataList[0]?.index !== nextProps.dataList[0]?.index
+//     ) {
+//       return false;
+//     }
+//     return true;
+//   }
+// );

@@ -4,7 +4,9 @@ import { KeepAliveAssist } from 'keep-alive-comp';
 import './styles.css';
 import useDebounce from '../../utils/useDebounce';
 
-interface ListProps extends KeepAliveAssist {}
+interface ListProps extends KeepAliveAssist {
+  renderCount: number;
+}
 
 interface Item {
   id: string;
@@ -12,6 +14,7 @@ interface Item {
 }
 
 const List: React.FC<ListProps> = ({
+  renderCount,
   beforeRouteLeave,
   stateRestore,
   scrollRestore,
@@ -19,7 +22,7 @@ const List: React.FC<ListProps> = ({
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTop = useRef(0);
-  const defaultPageIndex = useRef(2);
+  const defaultStartIndex = useRef(2);
   const [data, setData] = useState<any[] | undefined>([]);
 
   useEffect(() => {
@@ -36,7 +39,7 @@ const List: React.FC<ListProps> = ({
     const _state = stateRestore();
     console.log(_scrollTop, _state);
     scrollTop.current = _scrollTop || 0;
-    defaultPageIndex.current = _state?.pageIndex || 0;
+    defaultStartIndex.current = _state?.startIndex || 0;
     setTimeout(() => {
       // document.body.scrollTop = _scrollTop;
       // document.documentElement.scrollTop = _scrollTop;
@@ -45,42 +48,25 @@ const List: React.FC<ListProps> = ({
   };
 
   const onScroll = (_scrollTop: number) => {
-    const { state, scrollTop: scTop } = getKeepAlive() || {};
-    scrollTop.current = _scrollTop ?? scTop;
-    beforeRouteLeave(scrollTop.current, state);
+    scrollTop.current = _scrollTop;
+    console.log(scrollTop.current);
+    beforeRouteLeave(scrollTop.current, {});
   };
 
-  const increment = (index: number) => {
+  const countHandler = (index: number, type: 'increment' | 'decrement') => {
     setData((prev) => {
       const newItem = {
         ...prev[index],
-        count: prev[index].count + 1,
+        count:
+          type === 'increment' ? prev[index].count + 1 : prev[index].count - 1,
       };
       prev.splice(index, 1, newItem);
-      return prev;
+      return [...prev];
     });
   };
 
-  const decrement = (index: number) => {
-    setData((prev) => {
-      const newItem = {
-        ...prev[index],
-        count: prev[index].count - 1,
-      };
-      prev.splice(index, 1, newItem);
-      return prev;
-    });
-  };
-
-  const onLoadMore = useDebounce((index: number) => {
-    console.log('onLoadMore ', index);
-    beforeRouteLeave(scrollTop.current, {
-      pageIndex: index,
-    });
-  });
-
-  const onVisibleChange = useDebounce((indexs) => {
-    console.log('indexs: ', indexs);
+  const onStartIndexChange = useDebounce((index) => {
+    console.log('index: ', index);
   });
 
   return (
@@ -88,20 +74,23 @@ const List: React.FC<ListProps> = ({
       <VirtualList
         itemKey="id"
         dataList={data}
-        defaultPageIndex={defaultPageIndex.current}
+        // renderCount={renderCount}
+        // defaultStartIndex={defaultStartIndex.current}
         getScrollContainer={() => document.getElementById('scroll-container')}
         onScroll={onScroll}
-        onLoadMore={onLoadMore}
-        onVisibleChange={onVisibleChange}
+        onStartIndexChange={onStartIndexChange}
       >
         {(item: Item, index) => (
-          <div
-            className={`item ${index % 2 === 0 ? 'item-2n' : ''}`}
-            key={item.id}
-          >
+          <div className={`item ${index % 2 === 0 ? 'item-2n' : ''}`}>
+            <button onClick={() => console.log(item, index)}>item</button>
             <p>
-              <button onClick={() => decrement(index)}>count--</button>&nbsp;
-              <button onClick={() => increment(index)}>count++</button>
+              <button onClick={() => countHandler(index, 'decrement')}>
+                count--
+              </button>
+              &nbsp;
+              <button onClick={() => countHandler(index, 'increment')}>
+                count++
+              </button>
             </p>
             <p>id: {item.id}</p>
             <p>count: {item.count}</p>

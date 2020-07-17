@@ -7,7 +7,3 @@
   will-change: auto;
   transform: translateZ(0);
 }
-
-.virtual-item-wrapper.hidden > .virtual-item-content {
-  display: none;
-}

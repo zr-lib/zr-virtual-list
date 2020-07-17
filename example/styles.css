@@ -2,3 +2,15 @@
   font-family: sans-serif;
   text-align: center;
 }
+
+.radio {
+  margin: 0 5px;
+  padding: 0 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.radio.checked {
+  color: #fff;
+  background: #2196f3;
+}
