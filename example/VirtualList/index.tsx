@@ -1,7 +1,16 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import useThrottle from '../../utils/useThrottle';
-import useDebounce from '../../utils/useDebounce';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import './styles.css';
+
+interface TransformProps {
+  startIndex?: number;
+  scrollTop?: number;
+}
 
 export interface VirtualListProps {
   itemKey: string; // 唯一 key
@@ -17,7 +26,7 @@ export interface VirtualListProps {
 }
 
 /**
- * 长列表虚拟滚动
+ * VirtualList 长列表虚拟滚动
  * @description 说明：每次只渲染 renderCount 的数量
  * @param {*} props.itemKey: string; // 唯一 key
  * @param {*} props.dataList: any[]; // 列表数据
@@ -39,34 +48,51 @@ const VirtualList: React.FC<VirtualListProps> = ({
   className = '',
   renderCount = 20,
   onScroll,
-  getScrollContainer,
+  getScrollContainer, // TODO: body滚动
   onStartIndexChange,
 }) => {
-  const virtualList = useRef<HTMLDivElement>(null);
-  const scrollContainer = useRef<HTMLElement>(null); // 滚动容器
+  const scrollContainer = useRef<HTMLElement | null>(null); // 滚动容器
+  const virtualList = useRef<HTMLDivElement | null>(null);
   const startIndex = useRef(0); // 开始切割的位置
   const scrollTop = useRef(0); // 滚动位置
   const itemScrollHeight = useRef(0); // 每个item占据的平均高度
-  const [renderedDataList, setRenderedDataList] = useState<any[]>([]); // 已渲染的部分
+  const placeholder1 = useRef<HTMLDivElement>(null); // 前占位
+  const placeholder2 = useRef<HTMLDivElement>(null); // 后占位
+  const [renderDataList, setRenderDataList] = useState<any[]>([]); // 已渲染的部分
 
-  if (dataList !== undefined && dataList !== null && !Array.isArray(dataList)) {
-    console.warn('[list]不是数组！');
-    return <p style={{ color: '#ff5722' }}>list不是数组！</p>;
+  if (!Array.isArray(dataList)) {
+    console.warn('[list] is not Array!');
+    return <p style={{ color: '#ff5722' }}>[list] is not Array!</p>;
+  }
+
+  if (renderCount < 0) {
+    console.warn('[renderCount] can not less than 0!');
+    return (
+      <p style={{ color: '#ff5722' }}>[renderCount] can not less than 0!</p>
+    );
   }
 
   useEffect(() => {
     if (renderCount < 10) console.warn('建议[renderCount] >= 10');
-    if (Array.isArray(dataList)) {
-      startIndex.current = startIndex.current || defaultStartIndex || 0;
-      init();
-      scrollListener('add');
-      onRenderHandler(startIndex.current);
+  }, []);
 
-      if (defaultScrollTop) {
-        setTimeout(() => {
-          scrollContainer.current.scrollTop = defaultScrollTop || 0;
-        }, 0);
-      }
+  useEffect(() => {
+    if (typeof defaultScrollTop === 'number') {
+      scrollTop.current = defaultScrollTop;
+    }
+  }, [defaultScrollTop]);
+
+  useEffect(() => {
+    if (typeof defaultStartIndex === 'number') {
+      startIndex.current = defaultStartIndex;
+    }
+  }, [defaultStartIndex]);
+
+  useLayoutEffect(() => {
+    if (Array.isArray(dataList)) {
+      init();
+      onRenderHandler(startIndex.current);
+      scrollListener('add');
     }
 
     return () => {
@@ -79,25 +105,56 @@ const VirtualList: React.FC<VirtualListProps> = ({
     scrollContainer.current = getScrollWrapper();
     setTimeout(() => {
       itemScrollHeight.current =
-        scrollContainer.current.scrollHeight / renderCount;
+        itemScrollHeight.current ||
+        scrollContainer.current?.scrollHeight! / renderCount;
+
+      // TODO: 只是修改dataList，会走这里
+      // 优先 startIndex
+      scrollTop.current = startIndex.current
+        ? transform_scrollTop_startIndex({
+            startIndex: startIndex.current,
+          })
+        : scrollTop.current || defaultScrollTop || 0;
+
+      setPlaceholderHeight();
+      scrollContainer.current!.scrollTop = scrollTop.current;
     }, 0);
   };
 
   // 根据 startIndex 切割需要渲染的部分
   const onRenderHandler = useCallback(
     (_startIndex: number) => {
-      setRenderedDataList(() => {
-        const newList = dataList
+      setRenderDataList(() => {
+        return dataList
           .slice(_startIndex, _startIndex + renderCount)
           .map((item, index) => ({
             ...item,
             index: _startIndex + index,
           }));
-        return newList;
       });
     },
     [dataList, renderCount]
   );
+
+  // 获取对应的数值 scrollTop <=> startIndex，优先 startIndex
+  const transform_scrollTop_startIndex = ({
+    scrollTop: _scrollTop,
+    startIndex: _startIndex,
+  }: TransformProps) => {
+    if (_scrollTop !== undefined && _startIndex !== undefined) {
+      console.log('优先使用[startIndex]');
+    }
+    if (typeof _startIndex === 'number') {
+      // 获取scrollTop
+      const scrollTop = Math.floor(itemScrollHeight.current * _startIndex);
+      return scrollTop;
+    } else {
+      // 获取itemIndex
+      const itemIndex = Math.floor(_scrollTop! / itemScrollHeight.current);
+      console.log(itemIndex);
+      return itemIndex;
+    }
+  };
 
   // 滚动容器
   const getScrollWrapper = () => {
@@ -109,7 +166,7 @@ const VirtualList: React.FC<VirtualListProps> = ({
 
   const scrollListener = (type: 'add' | 'remove') => {
     if (getScrollContainer) {
-      scrollContainer.current[`${type}EventListener`](
+      scrollContainer.current![`${type}EventListener`](
         'scroll',
         scrollHandler,
         false
@@ -121,33 +178,48 @@ const VirtualList: React.FC<VirtualListProps> = ({
 
   const scrollHandler = () => {
     const { scrollTop: _scrollTop } = getScrollWrapper();
-    const allItems = document.querySelectorAll('.virtual-item-wrapper');
-    const firstVisibleItem = Array.from(allItems).find(
-      (item: HTMLDivElement) => item.offsetTop >= _scrollTop
-    );
-
-    if (firstVisibleItem) {
-      const itemIndex = firstVisibleItem.getAttribute('item-index');
-      startIndexChange(Number(itemIndex));
-    }
-
-    onScrollChange(_scrollTop);
-  };
-
-  const onScrollChange = useThrottle((_scrollTop: number) => {
     scrollTop.current = _scrollTop;
+    const itemIndex = transform_scrollTop_startIndex({ scrollTop: _scrollTop });
+    startIndexChange(itemIndex);
     if (onScroll) onScroll(_scrollTop);
-  });
+  };
 
   const startIndexChange = (itemIndex: number) => {
     // itemIndex 往前推的数量
-    const leftCount = renderCount > 10 ? 10 : renderCount / 2;
+    const leftCount = Math.floor(renderCount / 4);
+    if (itemIndex - leftCount === startIndex.current) return;
+
+    virtualList.current.scrollTop = scrollTop.current;
     startIndex.current = itemIndex > leftCount ? itemIndex - leftCount : 0;
-    virtualList.current.setAttribute('start-index', `${startIndex.current}`);
+
+    setPlaceholderHeight();
     onRenderHandler(startIndex.current);
     if (onStartIndexChange) onStartIndexChange(startIndex.current);
   };
 
+  // 手动设置占位高度
+  const setPlaceholderHeight = () => {
+    placeholder1.current!.style.height = getPlaceholderHegiht('before') + 'px';
+    placeholder2.current!.style.height = getPlaceholderHegiht('after') + 'px';
+  };
+
+  // 前后占位的高度
+  const getPlaceholderHegiht = useCallback(
+    (type: 'before' | 'after') => {
+      const before =
+        startIndex.current === 0
+          ? 0
+          : itemScrollHeight.current * startIndex.current;
+      if (type === 'before') return before > 0 ? before : 0;
+
+      const after =
+        itemScrollHeight.current * (dataList.length - renderCount) - before;
+      return after > 0 ? after : 0;
+    },
+    [dataList, renderCount]
+  );
+
+  // 获取itemKey
   const getItemKey = useCallback(
     (item: any) => {
       return itemKey && item[itemKey] ? item[itemKey] : item.index;
@@ -163,8 +235,12 @@ const VirtualList: React.FC<VirtualListProps> = ({
       render-count={renderCount}
       data-length={dataList.length}
     >
-      {/* <div className="virtual-wrapper"> */}
-      {renderedDataList.map((item) => (
+      <div
+        ref={placeholder1}
+        className="placeholder"
+        style={{ height: getPlaceholderHegiht('before') + 'px' }}
+      />
+      {renderDataList.map((item) => (
         <div
           key={getItemKey(item)}
           item-index={item.index}
@@ -173,7 +249,11 @@ const VirtualList: React.FC<VirtualListProps> = ({
           {children(item, item.index)}
         </div>
       ))}
-      {/* </div> */}
+      <div
+        ref={placeholder2}
+        className="placeholder"
+        style={{ height: getPlaceholderHegiht('after') + 'px' }}
+      />
     </div>
   );
 };

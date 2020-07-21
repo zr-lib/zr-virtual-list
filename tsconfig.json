@@ -9,8 +9,9 @@
     "sourceMap": false,
     "allowJs": true,
     "jsx": "react",
+    "module": "ESNext",
     "moduleResolution": "node",
-    "rootDir": "./",
+    "rootDir": "./src",
     "forceConsistentCasingInFileNames": true,
     "noImplicitReturns": true,
     "noImplicitThis": false,
@@ -24,6 +25,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["./src/*"],
-  "exclude": ["./src/**/*.test.js"]
+  "include": ["./src/*", "static.d.ts"],
+  "exclude": ["./__test__/*"]
 }

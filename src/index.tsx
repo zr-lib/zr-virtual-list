@@ -1,133 +1,162 @@
-import React, { useEffect, useRef, useState } from 'react';
-import useThrottle from '../../utils/useThrottle';
-import useDebounce from '../../utils/useDebounce';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
+import useThrottle from './utils/useThrottle';
 import './styles.css';
+
+interface TransformProps {
+  startIndex?: number;
+  scrollTop?: number;
+}
 
 export interface VirtualListProps {
   itemKey: string; // 唯一 key
   dataList: any[]; // 列表数据
   children: (item: any, index: number) => React.ReactNode;
-  pageSize?: number; // 分页一页的数量（分段切割的段长度）
-  defaultPageIndex?: number; // 默认切割的位置
+  defaultStartIndex?: number; // 默认开始切割的位置
+  defaultScrollTop?: number; // 默认的滚动位置
   className?: string;
-  reachBottom?: number; // 到底部的距离，触发下次加载
-  visibleHeight?: number; // 可视区域范围，默认三个屏幕高度（上中下各一屏）
-  getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+  renderCount?: number; // 一次渲染的数量
   onScroll?: (scrollTop: number) => void; // 滚动回调
-  onLoadMore?: (pageIndex: number) => void;
-  onVisibleChange?: (indexs: number[]) => void; // 返回可见的index集合
+  getScrollContainer?: () => HTMLElement; // 滚动容器，默认 body
+  onStartIndexChange?: (index: number) => void; // 返回开始切割的位置
 }
 
 /**
  * 长列表虚拟滚动
+ * @description 说明：每次只渲染 renderCount 的数量
  * @param {*} props.itemKey: string; // 唯一 key
  * @param {*} props.dataList: any[]; // 列表数据
  * @param {*} props.children: (item: any, index: number) => React.ReactNode;
- * @param {*} props.pageSize?: number; // 分页一页的数量（分段切割的段长度）
- * @param {*} props.defaultPageIndex?: number; // 默认切割的位置
+ * @param {*} props.defaultStartIndex?: number; // 默认开始切割的位置
+ * @param {*} props.defaultScrollTop?: number; // 默认的滚动位置
  * @param {*} props.className?: string;
- * @param {*} props.reachBottom?: number; // 到底部的距离，触发下次加载
- * @param {*} props.visibleHeight?: number; // 可视区域范围，默认三个屏幕高度（上中下各一屏）
- * @param {*} props.getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+ * @param {*} props.renderCount?: number; // 一次渲染的数量
  * @param {*} props.onScroll?: (scrollTop: number) => void; // 滚动回调
- * @param {*} props.onLoadMore?: (pageIndex: number) => void;
- * @param {*} props.onVisibleChange?: (indexs: number[]) => void; // 返回可见的index集合
+ * @param {*} props.getScrollContainer?: () => HTMLElement; // 滚动容器，默认 window
+ * @param {*} props.onStartIndexChange?: (index: number) => void; // 返回开始切割的位置
  */
 const VirtualList: React.FC<VirtualListProps> = ({
   itemKey,
   dataList,
   children,
-  pageSize = 100,
-  defaultPageIndex = 0,
+  defaultStartIndex,
+  defaultScrollTop,
   className = '',
-  reachBottom = 200,
-  visibleHeight = 0,
-  getScrollContainer,
+  renderCount = 20,
   onScroll,
-  onLoadMore,
-  onVisibleChange,
+  getScrollContainer,
+  onStartIndexChange,
 }) => {
-  const scrollContainer = useRef<HTMLElement>(null); // 滚动容器
-  const pageIndex = useRef(0); // 当前页码，总页数dataList/pageSize
-  const visibleIndexs = useRef<number[]>([]); // 可见的index集合
-  const prevVisibleIndexs = useRef<number[]>([]); // 上次可见的index集合
-  const _visibleHeight = useRef(0); // 可见的高度
-  const AllitemWrapper = useRef<NodeListOf<Element> | any[]>([]); // 所有的ItemWrapper
-  const [renderedDataList, setRenderedDataList] = useState<any[]>([]); // 已渲染的部分
+  const scrollContainer = useRef<HTMLElement | null>(null); // 滚动容器
+  const virtualList = useRef<HTMLDivElement | null>(null);
+  const startIndex = useRef(0); // 开始切割的位置
+  const scrollTop = useRef(0); // 滚动位置
+  const itemScrollHeight = useRef(0); // 每个item占据的平均高度
+  const placeholder1 = useRef<HTMLDivElement>(null); // 前占位
+  const placeholder2 = useRef<HTMLDivElement>(null); // 后占位
+  const [renderDataList, setRenderDataList] = useState<any[]>([]); // 已渲染的部分
 
-  if (dataList !== undefined && dataList !== null && !Array.isArray(dataList)) {
-    console.warn('list不是数组！');
-    return <p style={{ color: '#ff5722' }}>list不是数组！</p>;
+  if (!Array.isArray(dataList)) {
+    console.warn('[list] is not Array!');
+    return <p style={{ color: '#ff5722' }}>[list] is not Array!</p>;
+  }
+
+  if (renderCount < 0) {
+    console.warn('[renderCount] can not less than 0!');
+    return (
+      <p style={{ color: '#ff5722' }}>[renderCount] can not less than 0!</p>
+    );
   }
 
   useEffect(() => {
-    scrollContainer.current = getScrollWrapper();
-
-    _visibleHeight.current =
-      visibleHeight ||
-      scrollContainer.current.offsetHeight * 2 ||
-      window.innerHeight * 2;
+    if (renderCount < 10) console.warn('建议[renderCount] >= 10');
   }, []);
 
   useEffect(() => {
-    if (Array.isArray(dataList)) {
-      // 长度小于 segmentLength，直接渲染
-      if (dataList.length < pageSize) {
-        setRenderedDataList(dataList);
-      } else {
-        setRenderedDataList([]);
-        pageIndex.current =
-          defaultPageIndex < dataList.length / pageSize
-            ? defaultPageIndex
-            : dataList.length / pageSize;
-
-        for (let i = 0; i < pageIndex.current + 1; i++) {
-          segmentRender(i);
-        }
-      }
+    if (typeof defaultScrollTop === 'number') {
+      scrollTop.current = defaultScrollTop;
     }
-  }, [dataList]);
-
-  // 按分页长度分段渲染
-  const segmentRender = (index: number) => {
-    const addItems = dataList.slice(index * pageSize, (index + 1) * pageSize);
-    setRenderedDataList((prev) => [...prev, addItems]);
-    if (onLoadMore && index > 0) onLoadMore(index);
-  };
+  }, [defaultScrollTop]);
 
   useEffect(() => {
-    AllitemWrapper.current = document.querySelectorAll(
-      '.zr-virtual-list .virtual-item-wrapper'
-    );
-    init();
-    scrollListener('add');
+    if (typeof defaultStartIndex === 'number') {
+      startIndex.current = defaultStartIndex;
+    }
+  }, [defaultStartIndex]);
+
+  useLayoutEffect(() => {
+    if (Array.isArray(dataList)) {
+      init();
+      onRenderHandler(startIndex.current);
+      scrollListener('add');
+    }
 
     return () => {
       scrollListener('remove');
     };
-  }, [renderedDataList]);
+  }, [dataList, defaultStartIndex, defaultScrollTop, renderCount]);
 
   // 初始化
   const init = () => {
-    if (AllitemWrapper.current.length < pageSize) {
-      setTimeout(() => {
-        AllitemWrapper.current.forEach((el: Element) => {
-          handlItemWrapper(el);
-        });
-      }, 0);
+    scrollContainer.current = getScrollWrapper();
+    setTimeout(() => {
+      itemScrollHeight.current =
+        itemScrollHeight.current ||
+        scrollContainer.current?.scrollHeight! / renderCount;
+
+      // 优先 startIndex
+      scrollTop.current = startIndex.current
+        ? transform_scrollTop_startIndex({
+            startIndex: startIndex.current,
+          })
+        : scrollTop.current || defaultScrollTop || 0;
+
+      // onRenderHandler(startIndex.current);
+      setPlaceholderHeight();
+      scrollContainer.current!.scrollTop = scrollTop.current;
+    }, 0);
+  };
+
+  // 根据 startIndex 切割需要渲染的部分
+  const onRenderHandler = useCallback(
+    (_startIndex: number) => {
+      setRenderDataList(() => {
+        return dataList
+          .slice(_startIndex, _startIndex + renderCount)
+          .map((item, index) => ({
+            ...item,
+            index: _startIndex + index,
+          }));
+      });
+    },
+    [dataList, renderCount]
+  );
+
+  // 获取对应的数值 scrollTop <=> startIndex，优先 startIndex
+  const transform_scrollTop_startIndex = ({
+    scrollTop: _scrollTop,
+    startIndex: _startIndex,
+  }: TransformProps) => {
+    if (_scrollTop !== undefined && _startIndex !== undefined) {
+      console.log('优先使用[startIndex]');
+    }
+    if (typeof _startIndex === 'number') {
+      // 获取scrollTop
+      const scrollTop = Math.floor(itemScrollHeight.current * _startIndex);
+      return scrollTop;
     } else {
-      const addItemWrappers: any[] = Array.from(AllitemWrapper.current).slice(
-        AllitemWrapper.current.length - pageSize,
-        AllitemWrapper.current.length
-      );
-      setTimeout(() => {
-        addItemWrappers.forEach((el) => {
-          handlItemWrapper(el);
-        });
-      }, 0);
+      // 获取itemIndex
+      const itemIndex = Math.floor(_scrollTop! / itemScrollHeight.current);
+      return itemIndex;
     }
   };
 
+  // 滚动容器
   const getScrollWrapper = () => {
     const scrollWrapper =
       getScrollContainer?.() ??
@@ -136,124 +165,98 @@ const VirtualList: React.FC<VirtualListProps> = ({
   };
 
   const scrollListener = (type: 'add' | 'remove') => {
-    if (type === 'add') {
-      if (getScrollContainer) {
-        scrollContainer.current.addEventListener(
-          'scroll',
-          scrollHandler,
-          false
-        );
-      } else {
-        window.addEventListener('scroll', scrollHandler, false);
-      }
+    if (getScrollContainer) {
+      scrollContainer.current![`${type}EventListener`](
+        'scroll',
+        scrollHandler,
+        false
+      );
     } else {
-      if (getScrollContainer) {
-        scrollContainer.current.removeEventListener(
-          'scroll',
-          scrollHandler,
-          false
-        );
-      } else {
-        window.removeEventListener('scroll', scrollHandler, false);
-      }
+      window[`${type}EventListener`]('scroll', scrollHandler, false);
     }
   };
 
   const scrollHandler = () => {
-    const { scrollTop, clientHeight, scrollHeight } = getScrollWrapper();
-    if (
-      scrollHeight - clientHeight - scrollTop <= reachBottom &&
-      pageIndex.current < dataList.length / pageSize
-    ) {
-      pageIndex.current = pageIndex.current + 1;
-      segmentRender(pageIndex.current);
-    }
-
-    onVirtualScroll(scrollTop);
-    onScrollChange(scrollTop);
+    const { scrollTop: _scrollTop } = getScrollWrapper();
+    scrollTop.current = _scrollTop;
+    const itemIndex = transform_scrollTop_startIndex({ scrollTop: _scrollTop });
+    startIndexChange(itemIndex);
+    onScrollChange(_scrollTop);
   };
-
-  // 元素滚动
-  const onVirtualScroll = (_scrollTop: number) => {
-    visibleIndexs.current = [];
-    AllitemWrapper.current.forEach((el: Element) => {
-      handlItemWrapper(el);
-    });
-  };
-
-  // ItemWrapper处理
-  const handlItemWrapper = (el: Element) => {
-    const ioWrapper = new IntersectionObserver((entries) => {
-      const wrapper = entries[0].target as HTMLDivElement;
-      const wrapperClientHeight = wrapper?.clientHeight;
-
-      const { top, bottom } = entries[0].boundingClientRect;
-
-      if (
-        entries[0].intersectionRatio > 0 ||
-        (top > 0 && top < _visibleHeight.current) ||
-        (bottom < 0 && bottom > -_visibleHeight.current)
-      ) {
-        wrapper.style.height = '';
-        wrapper.classList.remove('hidden');
-        const index = wrapper.getAttribute('item-index');
-        if (!visibleIndexs.current.includes(Number(index))) {
-          visibleIndexs.current.push(Number(index));
-        }
-      } else {
-        wrapper.style.height = `${wrapperClientHeight}px`;
-        wrapper.classList.add('hidden');
-      }
-
-      updateVisibleIndex();
-      ioWrapper.unobserve(el);
-    });
-    setTimeout(() => ioWrapper.observe(el), 0);
-  };
-
-  // onVisibleChange
-  const updateVisibleIndex = useDebounce(() => {
-    visibleIndexs.current = visibleIndexs.current.sort((x, y) => x - y);
-    // 有监听事件 + 长度大于0 + 与上次不同 => 执行回调
-    if (
-      onVisibleChange &&
-      visibleIndexs.current.length &&
-      visibleIndexs.current.join('') !== prevVisibleIndexs.current.join('')
-    ) {
-      onVisibleChange(visibleIndexs.current);
-    }
-    prevVisibleIndexs.current = visibleIndexs.current;
-  });
 
   const onScrollChange = useThrottle((_scrollTop: number) => {
     if (onScroll) onScroll(_scrollTop);
   });
 
-  // 获取item在dataList里的下标index
-  const getRealIndex = (subIndex, index) => {
-    return subIndex * pageSize + index;
+  const startIndexChange = (itemIndex: number) => {
+    // itemIndex 往前推的数量
+    const leftCount = Math.floor(renderCount / 4);
+    if (itemIndex - leftCount === startIndex.current) return;
+
+    startIndex.current = itemIndex > leftCount ? itemIndex - leftCount : 0;
+
+    setPlaceholderHeight();
+    onRenderHandler(startIndex.current);
+    if (onStartIndexChange) onStartIndexChange(startIndex.current);
   };
 
+  // 手动设置占位高度
+  const setPlaceholderHeight = () => {
+    placeholder1.current!.style.height = getPlaceholderHegiht('before') + 'px';
+    placeholder2.current!.style.height = getPlaceholderHegiht('after') + 'px';
+  };
+
+  // 前后占位的高度
+  const getPlaceholderHegiht = useCallback(
+    (type: 'before' | 'after') => {
+      const before =
+        startIndex.current === 0
+          ? 0
+          : itemScrollHeight.current * startIndex.current;
+      if (type === 'before') return before > 0 ? before : 0;
+
+      const after =
+        itemScrollHeight.current * (dataList.length - renderCount) - before;
+      return after > 0 ? after : 0;
+    },
+    [dataList, renderCount]
+  );
+
+  // 获取itemKey
+  const getItemKey = useCallback(
+    (item: any) => {
+      return itemKey && item[itemKey] ? item[itemKey] : item.index;
+    },
+    [itemKey]
+  );
+
   return (
-    <div className={`zr-virtual-list ${className}`}>
-      {Array.isArray(renderedDataList) &&
-        renderedDataList.map((subDataList, subIndex) =>
-          subDataList.map((item, index) => (
-            <div
-              key={
-                itemKey && item[itemKey]
-                  ? item[itemKey]
-                  : getRealIndex(subIndex, index)
-              }
-              item-index={getRealIndex(subIndex, index)}
-              className="virtual-item-wrapper"
-            >
-              <div className="virtual-item-content">
-                {children(item, getRealIndex(subIndex, index))}
-              </div>
-            </div>
-          ))
-        )}
+    <div
+      ref={virtualList}
+      className={`zr-virtual-list ${className}`}
+      item-key={itemKey}
+      render-count={renderCount}
+      data-length={dataList.length}
+    >
+      <div
+        ref={placeholder1}
+        className="placeholder"
+        style={{ height: getPlaceholderHegiht('before') + 'px' }}
+      />
+      {renderDataList.map((item) => (
+        <div
+          key={getItemKey(item)}
+          item-index={item.index}
+          className="virtual-item-wrapper"
+        >
+          {children(item, item.index)}
+        </div>
+      ))}
+      <div
+        ref={placeholder2}
+        className="placeholder"
+        style={{ height: getPlaceholderHegiht('after') + 'px' }}
+      />
     </div>
   );
 };

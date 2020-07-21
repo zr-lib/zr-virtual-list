@@ -30,7 +30,7 @@ const config = {
     publicPath: isEnvDevelopment ? '/' : './',
   },
   resolve: {
-    extensions: ['.css', '.tsx', '.ts', '.js', '.jsx'],
+    extensions: ['.css', '.less', '.tsx', '.ts', '.js', '.jsx', '.jpg'],
   },
   devtool: shouldUseSourceMap ? 'source-map' : false,
   devServer: {
@@ -52,7 +52,7 @@ const config = {
         include: paths.srcPath,
       },
       {
-        test: /\.css$/,
+        test: /\.(css|less)$/,
         use: [
           'style-loader',
           { loader: 'css-loader', options: { importLoaders: 1 } },
@@ -72,7 +72,14 @@ const config = {
               ],
             },
           },
+          {
+            loader: 'less-loader',
+          },
         ],
+      },
+      {
+        test: /\.(jpe?g|png|svg|gif)$/,
+        loader: 'file-loader',
       },
     ],
   },
