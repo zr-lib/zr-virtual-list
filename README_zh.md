@@ -51,7 +51,7 @@ export interface VirtualListProps {
 
 在线例子：[zr-virtual-list example](zero9527.github.io/zr-virtual-list)
 
-组件：[example\List\index.tsx]("./example/List/index.tsx")
+组件：[example\List\index.tsx](./example/List/index.tsx)
 
 ```jsx
 // example\List\index.tsx
