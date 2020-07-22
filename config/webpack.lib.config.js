@@ -1,13 +1,15 @@
 const path = require('path');
 const fs = require('fs');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 const BannerPlugin = require('webpack').BannerPlugin;
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const postcssNormalize = require('postcss-normalize');
+const package = require('../package.json');
 
 const util = require('./util');
 
-const shouldUseSourceMap = false;
+const shouldUseSourceMap = true;
 
 const resolvePath = (_path) => path.resolve(__dirname, _path);
 const paths = {
@@ -17,19 +19,17 @@ const paths = {
   outputPath: resolvePath('../dist'),
 };
 
-const package = fs.readFileSync(resolvePath('../package.json'), {
-  encoding: 'utf-8',
-});
-const { version } = JSON.parse(package);
-const banner = `keep-alive\nversion: ${version}\nbuild: ${util.getTime()}`;
+const banner = `zr-virtual-list\nversion: ${
+  package.version
+}\nbuild: ${util.getTime()}`;
 
 module.exports = {
   mode: 'production',
   entry: paths.entry,
   output: {
     filename: 'index.js',
-    library: 'PositionSticky',
-    libraryTarget: 'commonjs2',
+    library: 'VirtualList',
+    libraryTarget: 'umd',
     path: paths.outputPath,
     publicPath: paths.publicPath,
   },
@@ -91,5 +91,13 @@ module.exports = {
     new CleanWebpackPlugin(),
     new BannerPlugin(banner),
     new ForkTsCheckerWebpackPlugin(),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: resolvePath('../src/index.d.ts'),
+          to: resolvePath('../dist'),
+        },
+      ],
+    }),
   ],
 };

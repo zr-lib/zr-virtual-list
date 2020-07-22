@@ -1,6 +1,6 @@
 {
   "name": "zr-virtual-list",
-  "version": "0.1.0",
+  "version": "1.0.0-beta-1",
   "description": "React Virtual List",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -57,7 +57,7 @@
     "babel-loader": "^8.0.6",
     "babel-plugin-transform-class-properties": "^6.24.1",
     "clean-webpack-plugin": "^3.0.0",
-    "copy-webpack-plugin": "^5.1.1",
+    "copy-webpack-plugin": "^6.0.3",
     "cross-env": "^7.0.2",
     "css-loader": "^3.4.2",
     "cssnano": "^4.1.10",
@@ -85,7 +85,6 @@
     "without-props": "^1.0.1"
   },
   "dependencies": {
-    "keep-alive-comp": "^0.1.2",
-    "use-immer": "^0.4.0"
+    "keep-alive-comp": "^0.1.2"
   }
 }

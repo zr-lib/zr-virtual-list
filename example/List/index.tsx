@@ -1,57 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { KeepAliveAssist } from 'keep-alive-comp';
-// import VirtualList from 'zr-virtual-list';
-import VirtualList from '../VirtualList';
+import React, { useState, useEffect, useRef } from 'react';
+import VirtualList from 'zr-virtual-list';
+import RadioGroup from '../RadioGroup';
 import './styles.less';
 
-interface ListProps extends KeepAliveAssist {
-  dataLength: number;
-  renderCount: number;
-  startIndex: number;
-}
+interface ListProps {}
 
 interface Item {
   id: string;
   count: number;
 }
 
-const List: React.FC<ListProps> = ({
-  dataLength,
-  renderCount,
-  startIndex,
-  beforeRouteLeave,
-  stateRestore,
-  scrollRestore,
-  getKeepAlive,
-}) => {
-  const [scrollTop, setScrollTop] = useState(1000);
+const countList = [10, 20, 50, 100, 500, 3000];
+const indexList = [undefined, 0, 6, 21, 112, 666, 2345];
+const scrollList = [undefined, 0, 100, 1800, 8888, 22000];
+
+const List: React.FC<ListProps> = () => {
   const [data, setData] = useState<any[]>([]);
+  const scrollTop1 = useRef<number | undefined>();
+  const [visible, setVisible] = useState(true);
+  const [renderCount, setRenderCount] = useState(20);
+  const [defaultStartIndex, setDefaultStartIndex] = useState<
+    number | undefined
+  >(666);
+  const [defaultScrollTop, setDefaultScrollTop] = useState<number | undefined>(
+    100
+  );
 
   useEffect(() => {
     const arr = [];
-    for (let i = 0; i < dataLength; i++) {
+    for (let i = 0; i < 10000; i++) {
       arr.push({ id: `id-${i}`, count: 0 });
     }
     setData(arr);
-    restore();
   }, []);
 
-  const restore = () => {
-    const _scrollTop = scrollRestore!();
-    const _state = stateRestore!();
-    // console.log(_scrollTop, _state);
-    // setScrollTop(_scrollTop || scrollTop);
-    // setStartIndex(_state?.startIndex || startIndex);
-  };
+  useEffect(() => {
+    if (visible && scrollTop1.current) {
+      setDefaultScrollTop(scrollTop1.current);
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (defaultScrollTop === undefined) {
+      scrollTop1.current = undefined;
+    }
+  }, [defaultScrollTop]);
 
   const onScroll = (_scrollTop: number) => {
     console.log(_scrollTop);
-    // setScrollTop(_scrollTop);
-    beforeRouteLeave!(_scrollTop, {});
+    scrollTop1.current = _scrollTop;
   };
 
   const countHandler = (index: number, type: 'increment' | 'decrement') => {
-    console.log(index);
     setData((prev) => {
       const newItem = {
         ...prev![index],
@@ -66,30 +66,47 @@ const List: React.FC<ListProps> = ({
   };
 
   const onStartIndexChange = (index: number) => {
-    // console.log('index: ', index);
+    console.log('index: ', index);
   };
 
-  const scrollToTop = () => {
-    // virtualList.current.scrollToTop();
-    setScrollTop(0);
-    // setTimeout(() => {
-    //   if (scrollTop > 0) toTop();
-    // });
+  const onVisibleChange = () => {
+    setVisible(!visible);
   };
 
   return (
     <>
+      <p>dataLength: {data.length}</p>
+      <RadioGroup
+        name="renderCount"
+        value={renderCount}
+        setValue={setRenderCount}
+        dataList={countList}
+      />
+      <RadioGroup
+        name="defaultStartIndex"
+        value={defaultStartIndex}
+        setValue={setDefaultStartIndex}
+        dataList={indexList}
+      />
+      <RadioGroup
+        name="defaultScrollTop"
+        value={defaultScrollTop}
+        setValue={setDefaultScrollTop}
+        dataList={scrollList}
+      />
       <p>
-        <button onClick={scrollToTop}>scrollToTop</button>
+        <button onClick={onVisibleChange}>
+          {visible ? 'Hide List' : 'Show List'}
+        </button>
       </p>
-      {data && (
+      {visible && (
         <VirtualList
           itemKey="id"
           className="scroll-container"
           dataList={data}
           renderCount={renderCount}
-          defaultScrollTop={scrollTop}
-          defaultStartIndex={startIndex}
+          defaultScrollTop={defaultScrollTop}
+          defaultStartIndex={defaultStartIndex}
           getScrollContainer={() =>
             document.querySelector('.scroll-container')! as HTMLElement
           }

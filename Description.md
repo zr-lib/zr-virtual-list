@@ -1,13 +1,11 @@
-# zr-virtual-list
+# zr-virtual-list 长列表虚拟滚动
 
 React 长列表虚拟滚动
-
-[English](./README.md) | 中文
-
 
 ## 依赖
 React: 16.8.0+
 
+源码使用了 `React Hook`
 
 ## 下载
 
@@ -45,6 +43,154 @@ export interface VirtualListProps {
   onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回开始切割的位置
 }
 ```
+
+
+## 实现
+
+### 渲染结构
+#### 前占位、后占位
+
+1. 前占位
+
+    根据 `startIndex` 与 `item的平均高度` 算出来的
+
+2. 后占位
+
+```ts
+// 前后占位的高度
+const getPlaceholderHegiht = useCallback(
+  (type: 'before' | 'after') => {
+    const before =
+      startIndex.current === 0
+        ? 0
+        : itemScrollHeight.current * startIndex.current!;
+    if (type === 'before') return before > 0 ? before : 0;
+
+    const after =
+      itemScrollHeight.current * (dataList.length - renderCount) - before;
+    return after > 0 ? after : 0;
+  },
+  [dataList, renderCount]
+);
+```
+
+#### 渲染的内容
+
+> 经过小测，`renderCount` 为 20 时，大概快速滑动（手机端，每秒50个左右吧，电脑上鼠标拉着滚动条滑动还没出现过），偶尔会出现轻微的空白问题，可以接受，通过设置 `renderCount` 也可以改善
+
+- 根据 `defaultStartIndex`/`defaultScrollTop` 渲染 `renderCount` 的数量；
+
+- 通过 `transform_scrollTop_itemIndex` 方法转换得到 `scrollTop`/`itemIndex`，然后 `onRenderHandler` 方法渲染，再接着设置滚动容器的 `scrollTop`；
+
+- 首次渲染，将 `startIndex` 的那个 `item` 显示在顶部，为了防止快速滑动导致的空白问题，
+
+```ts
+const scrollHandler = () => {
+  const { scrollTop: _scrollTop } = getScrollWrapper();
+  scrollTop.current = _scrollTop;
+  const transform_itemIndex = transform_scrollTop_itemIndex({
+    itemScrollHeight: itemScrollHeight.current,
+    scrollTop: _scrollTop,
+  });
+  startIndexChange(transform_itemIndex);
+  if (onScroll) onScroll(_scrollTop);
+};
+
+const startIndexChange = (itemIndex: number) => {
+  // itemIndex 往前推的数量
+  const leftCount = Math.floor(renderCount / 4);
+  if (itemIndex - leftCount === startIndex.current) return;
+
+  virtualList.current!.scrollTop = scrollTop.current!;
+  startIndex.current = itemIndex > leftCount ? itemIndex - leftCount : 0;
+
+  setPlaceholderHeight();
+  onRenderHandler(startIndex.current);
+  if (onStartIndexChange) onStartIndexChange(startIndex.current, itemIndex);
+};
+
+// 根据 startIndex 切割需要渲染的部分
+const onRenderHandler = useCallback(
+  (_startIndex: number) => {
+    setRenderDataList(() => {
+      return dataList
+        .slice(_startIndex, _startIndex + renderCount)
+        .map((item, index) => ({
+          ...item,
+          index: _startIndex + index,
+        }));
+    });
+  },
+  [dataList, renderCount]
+);
+```
+
+### 滚动与显示
+
+1. 根据 **滚动位置** `scrollTop`，获取对应的 `itemIndex`（在`dataList`里的序号）
+2. 根据 `itemIndex`（在 `dataList` 里的下标），获取对应的 **滚动位置** `scrollTop`
+
+```ts
+// 获取对应的数值 scrollTop=>itemIndex，startIndex=>scrollTop，
+// 优先 scrollTop
+export function transform_scrollTop_itemIndex({
+  itemScrollHeight,
+  scrollTop: _scrollTop,
+  startIndex: _startIndex,
+}: TransformProps) {
+  if (_scrollTop !== undefined && _startIndex !== undefined) {
+    console.log('优先使用[scrollTop]');
+  }
+  if (typeof _scrollTop === 'number') {
+    // 获取itemIndex
+    const itemIndex = Math.floor(_scrollTop / itemScrollHeight);
+    return itemIndex;
+  } else {
+    // 获取scrollTop
+    const scrollTop = Math.floor(itemScrollHeight * _startIndex!);
+    return scrollTop;
+  }
+}
+```
+
+### 默认值与状态恢复
+
+首次渲染，如果 `defaultScrollTop`/`defaultStartIndex` 同时存在，优先使用 `defaultScrollTop`；之后使用变化的那个
+
+```ts
+// 设置处理 scrollTop.current
+const setScrollTopHandler = () => {
+  // defaultScrollTop 是否变化
+  const use_defaultScrollTop =
+    isNumber(defaultScrollTop) &&
+    _defaultScrollTop.current !== defaultScrollTop;
+
+  // defaultStartIndex 是否变化
+  const use_defaultStartIndex =
+    isNumber(defaultStartIndex) &&
+    _defaultStartIndex.current !== defaultStartIndex;
+
+  // 首次渲染，如果 `defaultScrollTop`/`defaultStartIndex` 同时存在，
+  // 优先使用 `defaultScrollTop`；之后使用变化的那个
+  if (use_defaultScrollTop) {
+    _defaultScrollTop.current = defaultScrollTop;
+    scrollTop.current = defaultScrollTop;
+  } else if (use_defaultStartIndex) {
+    _defaultStartIndex.current = defaultStartIndex;
+
+    // defaultStartIndex 转化为 scrollTop
+    const transform_scrollTop = transform_scrollTop_itemIndex({
+      itemScrollHeight: itemScrollHeight.current,
+      startIndex: defaultStartIndex,
+    });
+    scrollTop.current = transform_scrollTop || 0;
+  } else {
+    scrollTop.current = scrollTop.current || 0;
+  }
+};
+```
+
+### 
 
 
 ## 用法
