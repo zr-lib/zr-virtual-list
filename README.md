@@ -50,7 +50,7 @@ export interface VirtualListProps {
 
 online: [zr-virtual-list example](zero9527.github.io/zr-virtual-list)
 
-component: [example\List\index.tsx]("./example/List/index.tsx")
+component: [example\List\index.tsx](./example/List/index.tsx)
 
 
 ```jsx
