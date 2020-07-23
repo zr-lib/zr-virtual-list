@@ -18,7 +18,7 @@ npm i zr-virtual-list
 
 ## 参数
 
-首次渲染，如果 `defaultScrollTop`/`defaultStartIndex` 同时存在，优先使用 `defaultScrollTop`；之后使用变化的那个
+首次渲染，如果 `defaultScrollTop`/`defaultStartIndex` 同时存在，优先使用 `defaultScrollTop`；之后哪个变化使用哪个
 
 - itemKey: string; // 唯一 key
 - dataList: any[]; // 列表数据
@@ -122,8 +122,8 @@ const List: React.FC<ListProps> = () => {
     });
   };
 
-  const onStartIndexChange = (index: number) => {
-    // console.log('index: ', index);
+  const onStartIndexChange = (visibleItemIndex: number) => {
+    console.log('visibleItemIndex: ', visibleItemIndex);
   };
 
   const onVisibleChange = () => {

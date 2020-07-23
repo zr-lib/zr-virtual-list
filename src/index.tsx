@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import { VirtualListProps } from './index.d';
 import { isNumber, transform_scrollTop_itemIndex } from './utils';
 import './styles.css';
@@ -26,7 +32,7 @@ const VirtualList: React.FC<VirtualListProps> = ({
   className = '',
   renderCount = 20,
   onScroll,
-  getScrollContainer, // TODO: body滚动
+  getScrollContainer,
   onStartIndexChange,
 }) => {
   const scrollContainer = useRef<HTMLElement | null>(null); // 滚动容器
@@ -40,14 +46,19 @@ const VirtualList: React.FC<VirtualListProps> = ({
   const placeholder2 = useRef<HTMLDivElement>(null); // 后占位
   const [renderDataList, setRenderDataList] = useState<any[]>([]); // 已渲染的部分
 
+  if (typeof children !== 'function') {
+    console.error('[children] should be function!');
+    return null;
+  }
+
   if (!Array.isArray(dataList)) {
-    return <p style={{ color: '#ff5722' }}>[list] is not Array!</p>;
+    console.error('[list] is not Array!');
+    return null;
   }
 
   if (renderCount < 0) {
-    return (
-      <p style={{ color: '#ff5722' }}>[renderCount] can not less than 0!</p>
-    );
+    console.error('[renderCount] can not less than 0!');
+    return null;
   }
 
   useEffect(() => {
@@ -66,7 +77,7 @@ const VirtualList: React.FC<VirtualListProps> = ({
     }
   }, [defaultStartIndex]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (Array.isArray(dataList)) init();
 
     return () => {
@@ -80,17 +91,20 @@ const VirtualList: React.FC<VirtualListProps> = ({
     onRenderHandler(startIndex.current || 0);
     scrollListener('add');
     setTimeout(() => {
+      let offset = 0;
+      if (!getScrollContainer && virtualList.current) {
+        offset = virtualList.current.offsetTop;
+      }
       itemScrollHeight.current =
         itemScrollHeight.current ||
-        scrollContainer.current?.scrollHeight! / renderCount;
+        (scrollContainer.current?.scrollHeight! - offset) / renderCount;
 
       setScrollTopHandler();
       setPlaceholderHeight();
-      scrollContainer.current!.scrollTop = scrollTop.current!;
-    }, 0);
+    }, 10);
   };
 
-  // 设置处理 scrollTop.current
+  // 设置 scrollTop.current 逻辑
   const setScrollTopHandler = () => {
     // defaultScrollTop 是否变化
     const use_defaultScrollTop =
@@ -102,14 +116,14 @@ const VirtualList: React.FC<VirtualListProps> = ({
       isNumber(defaultStartIndex) &&
       _defaultStartIndex.current !== defaultStartIndex;
 
+    _defaultScrollTop.current = defaultScrollTop;
+    _defaultStartIndex.current = defaultStartIndex;
+
     // 首次渲染，如果 `defaultScrollTop`/`defaultStartIndex` 同时存在，
     // 优先使用 `defaultScrollTop`；之后使用变化的那个
     if (use_defaultScrollTop) {
-      _defaultScrollTop.current = defaultScrollTop;
       scrollTop.current = defaultScrollTop;
     } else if (use_defaultStartIndex) {
-      _defaultStartIndex.current = defaultStartIndex;
-
       // defaultStartIndex 转化为 scrollTop
       const transform_scrollTop = transform_scrollTop_itemIndex({
         itemScrollHeight: itemScrollHeight.current,
@@ -119,6 +133,8 @@ const VirtualList: React.FC<VirtualListProps> = ({
     } else {
       scrollTop.current = scrollTop.current || 0;
     }
+
+    setContainerScrollTop();
   };
 
   // 根据 startIndex 切割需要渲染的部分
@@ -138,10 +154,24 @@ const VirtualList: React.FC<VirtualListProps> = ({
 
   // 滚动容器
   const getScrollWrapper = () => {
-    const scrollWrapper =
-      getScrollContainer?.() ??
-      (document.body.scrollTop ? document.body : document.documentElement);
-    return scrollWrapper;
+    if (!getScrollContainer) {
+      return document.body.scrollTop ? document.body : document.documentElement;
+    }
+    if (getScrollContainer && !getScrollContainer()) {
+      console.warn('[getScrollContainer] return a invalid Element!');
+      return null;
+    }
+    return getScrollContainer();
+  };
+
+  // 设置滚动容器的 scrollTop
+  const setContainerScrollTop = () => {
+    if (!getScrollContainer) {
+      document.body.scrollTop = scrollTop.current!;
+      document.documentElement.scrollTop = scrollTop.current!;
+    } else {
+      scrollContainer.current!.scrollTop = scrollTop.current!;
+    }
   };
 
   const scrollListener = (type: 'add' | 'remove') => {
@@ -157,7 +187,10 @@ const VirtualList: React.FC<VirtualListProps> = ({
   };
 
   const scrollHandler = () => {
-    const { scrollTop: _scrollTop } = getScrollWrapper();
+    const scrollWrapper = getScrollWrapper();
+    if (!scrollWrapper) return;
+
+    const { scrollTop: _scrollTop } = scrollWrapper;
     scrollTop.current = _scrollTop;
     const transform_itemIndex = transform_scrollTop_itemIndex({
       itemScrollHeight: itemScrollHeight.current,
@@ -172,12 +205,11 @@ const VirtualList: React.FC<VirtualListProps> = ({
     const leftCount = Math.floor(renderCount / 4);
     if (itemIndex - leftCount === startIndex.current) return;
 
-    virtualList.current!.scrollTop = scrollTop.current!;
     startIndex.current = itemIndex > leftCount ? itemIndex - leftCount : 0;
 
     setPlaceholderHeight();
     onRenderHandler(startIndex.current);
-    if (onStartIndexChange) onStartIndexChange(startIndex.current, itemIndex);
+    if (onStartIndexChange) onStartIndexChange(itemIndex, startIndex.current);
   };
 
   // 手动设置占位高度

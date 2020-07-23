@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import VirtualList from 'zr-virtual-list';
+// import VirtualList from '../src';
 import RadioGroup from '../RadioGroup';
 import './styles.less';
 
@@ -21,7 +22,7 @@ const List: React.FC<ListProps> = () => {
   const [renderCount, setRenderCount] = useState(20);
   const [defaultStartIndex, setDefaultStartIndex] = useState<
     number | undefined
-  >(666);
+  >();
   const [defaultScrollTop, setDefaultScrollTop] = useState<number | undefined>(
     100
   );
@@ -65,8 +66,8 @@ const List: React.FC<ListProps> = () => {
     });
   };
 
-  const onStartIndexChange = (index: number) => {
-    console.log('index: ', index);
+  const onStartIndexChange = (visibleItemIndex: number) => {
+    console.log('visibleItemIndex: ', visibleItemIndex);
   };
 
   const onVisibleChange = () => {
@@ -75,30 +76,33 @@ const List: React.FC<ListProps> = () => {
 
   return (
     <>
-      <p>dataLength: {data.length}</p>
-      <RadioGroup
-        name="renderCount"
-        value={renderCount}
-        setValue={setRenderCount}
-        dataList={countList}
-      />
-      <RadioGroup
-        name="defaultStartIndex"
-        value={defaultStartIndex}
-        setValue={setDefaultStartIndex}
-        dataList={indexList}
-      />
-      <RadioGroup
-        name="defaultScrollTop"
-        value={defaultScrollTop}
-        setValue={setDefaultScrollTop}
-        dataList={scrollList}
-      />
-      <p>
-        <button onClick={onVisibleChange}>
-          {visible ? 'Hide List' : 'Show List'}
-        </button>
-      </p>
+      <div className="header">
+        <h2 className="title">zr-virtual-list example</h2>
+        <p>dataLength: {data.length}</p>
+        <RadioGroup
+          name="renderCount"
+          value={renderCount}
+          setValue={setRenderCount}
+          dataList={countList}
+        />
+        <RadioGroup
+          name="defaultStartIndex"
+          value={defaultStartIndex}
+          setValue={setDefaultStartIndex}
+          dataList={indexList}
+        />
+        <RadioGroup
+          name="defaultScrollTop"
+          value={defaultScrollTop}
+          setValue={setDefaultScrollTop}
+          dataList={scrollList}
+        />
+        <p>
+          <button onClick={onVisibleChange}>
+            {visible ? 'Hide List' : 'Show List'}
+          </button>
+        </p>
+      </div>
       {visible && (
         <VirtualList
           itemKey="id"
@@ -107,9 +111,6 @@ const List: React.FC<ListProps> = () => {
           renderCount={renderCount}
           defaultScrollTop={defaultScrollTop}
           defaultStartIndex={defaultStartIndex}
-          getScrollContainer={() =>
-            document.querySelector('.scroll-container')! as HTMLElement
-          }
           onScroll={onScroll}
           onStartIndexChange={onStartIndexChange}
         >

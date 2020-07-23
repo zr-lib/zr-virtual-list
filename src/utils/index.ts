@@ -15,11 +15,11 @@ export function transform_scrollTop_itemIndex({
   }
   if (typeof _scrollTop === 'number') {
     // 获取itemIndex
-    const itemIndex = Math.floor(_scrollTop / itemScrollHeight);
+    const itemIndex = Math.round(_scrollTop / itemScrollHeight);
     return itemIndex;
   } else {
     // 获取scrollTop
-    const scrollTop = Math.floor(itemScrollHeight * _startIndex!);
+    const scrollTop = Math.round(itemScrollHeight * _startIndex!);
     return scrollTop;
   }
 }

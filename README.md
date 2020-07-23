@@ -48,7 +48,7 @@ export interface VirtualListProps {
 
 ## Usage
 
-online: [zr-virtual-list example](zero9527.github.io/zr-virtual-list)
+online example: [zr-virtual-list example](zero9527.github.io/zr-virtual-list)
 
 component: [example\List\index.tsx](./example/List/index.tsx)
 
@@ -122,8 +122,8 @@ const List: React.FC<ListProps> = () => {
     });
   };
 
-  const onStartIndexChange = (index: number) => {
-    // console.log('index: ', index);
+  const onStartIndexChange = (visibleItemIndex: number) => {
+    console.log('visibleItemIndex: ', visibleItemIndex);
   };
 
   const onVisibleChange = () => {

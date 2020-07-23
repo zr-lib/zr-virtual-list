@@ -17,7 +17,7 @@ export interface VirtualListProps {
   renderCount?: number; // Number of renders at one time
   onScroll?: (scrollTop: number) => void; // Scroll callback
   getScrollContainer?: () => HTMLElement; // Scroll container, default body
-  onStartIndexChange?: (index: number) => void; // Return to the starting position
+  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // Return to the starting position
 }
 
 /**

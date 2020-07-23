@@ -1,6 +1,27 @@
+.header {
+  width: 100%;
+  max-width: 600px;
+  position: fixed;
+  top: 0;
+  border-bottom: 1px solid #ccc;
+  background: #fff;
+  z-index: 1;
+}
+
 .scroll-container {
-  height: 50vh;
-  max-height: 600px;
+  margin-top: 260px;
+  animation: show 0.1s ease-in;
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  @keyframes show {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 
   .list {
     margin: 10px 0;
