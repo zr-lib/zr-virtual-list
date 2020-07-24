@@ -11,13 +11,13 @@ export interface VirtualListProps {
   itemKey: string; // uniqu key
   dataList: any[]; // data for VirtualList
   children: (item: any, index: number) => React.ReactNode;
-  defaultStartIndex?: number; // The first visible item index by default
-  defaultScrollTop?: number; // Default scrollTop of scroll container
+  defaultStartIndex?: number; // the first visible item index by default
+  defaultScrollTop?: number; // default scrollTop of scroll container
   className?: string;
-  renderCount?: number; // Number of renders at one time
-  onScroll?: (scrollTop: number) => void; // Scroll callback
-  getScrollContainer?: () => HTMLElement; // Scroll container, default body/documentElement
-  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // a callback `cb(visibleItemIndex, startIndex)`
+  renderCount?: number; // number of renders at one time
+  onScroll?: (scrollTop: number) => void; // scroll callback
+  getScrollContainer?: () => HTMLElement; // scroll container, default body/documentElement
+  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // startIndex change callback
 }
 
 /**
@@ -26,13 +26,13 @@ export interface VirtualListProps {
  * @param {*} props.itemKey: string; // uniqu key
  * @param {*} props.dataList: any[]; // data for VirtualList
  * @param {*} props.children: (item: any, index: number) => React.ReactNode;
- * @param {*} props.defaultStartIndex?: number; // The first visible item index by default
- * @param {*} props.defaultScrollTop?: number; // Default scrollTop of scroll container
+ * @param {*} props.defaultStartIndex?: number; // the first visible item index by default
+ * @param {*} props.defaultScrollTop?: number; // default scrollTop of scroll container
  * @param {*} props.className?: string;
- * @param {*} props.renderCount?: number; // Number of renders at one time
- * @param {*} props.onScroll?: (scrollTop: number) => void; // Scroll callback
- * @param {*} props.getScrollContainer?: () => HTMLElement; // Scroll container, default body/documentElement
- * @param {*} props.onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // a callback `cb(visibleItemIndex, startIndex)`
+ * @param {*} props.renderCount?: number; // number of renders at one time
+ * @param {*} props.onScroll?: (scrollTop: number) => void; // scroll callback
+ * @param {*} props.getScrollContainer?: () => HTMLElement; // scroll container, default body/documentElement
+ * @param {*} props.onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // startIndex change callback
  */
 declare const VirtualList: React.FC<VirtualListProps>;
 export default VirtualList;
