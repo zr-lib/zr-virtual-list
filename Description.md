@@ -21,13 +21,13 @@ npm i zr-virtual-list
 - itemKey: string; // 唯一 key
 - dataList: any[]; // 列表数据
   children: (item: any, index: number) => React.ReactNode;
-- defaultStartIndex?: number; // 默认开始切割的位置
+- defaultStartIndex?: number; // 默认第一个可视的item下标
 - defaultScrollTop?: number; // 默认的滚动位置
 - className?: string;
 - renderCount?: number; // 一次渲染的数量
 - onScroll?: (scrollTop: number) => void; // 滚动回调
 - getScrollContainer?: () => HTMLElement; // 滚动容器，默认 body
-- onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回开始切割的位置
+- onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回 itemIndex, startIndex
 
 ```typescript
 export interface VirtualListProps {
@@ -40,7 +40,7 @@ export interface VirtualListProps {
   renderCount?: number; // 一次渲染的数量
   onScroll?: (scrollTop: number) => void; // 滚动回调
   getScrollContainer?: () => HTMLElement; // 滚动容器，默认 body
-  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回开始切割的位置
+  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回 itemIndex, startIndex
 }
 ```
 
@@ -232,6 +232,13 @@ const setScrollTopHandler = () => {
   // 优先使用 `defaultScrollTop`；之后使用变化的那个
   if (use_defaultScrollTop) {
     scrollTop.current = defaultScrollTop;
+    // defaultScrollTop 转化为 itemIndex
+    const transform_itemIndex = transform_scrollTop_itemIndex({
+      itemScrollHeight: itemScrollHeight.current,
+      scrollTop: defaultScrollTop,
+    });
+    startIndex.current = transform_itemIndex || 0;
+    onRenderHandler(startIndex.current);
   } else if (use_defaultStartIndex) {
     // defaultStartIndex 转化为 scrollTop
     const transform_scrollTop = transform_scrollTop_itemIndex({
@@ -243,7 +250,8 @@ const setScrollTopHandler = () => {
     scrollTop.current = scrollTop.current || 0;
   }
 
-  setContainerScrollTop();
+  // 设置滚动容器 scrollTop
+  setTimeout(() => setContainerScrollTop(), 0);
 };
 ```
 
@@ -280,9 +288,9 @@ const List: React.FC<ListProps> = () => {
   const [renderCount, setRenderCount] = useState(20);
   const [defaultStartIndex, setDefaultStartIndex] = useState<
     number | undefined
-  >();
+  >(666);
   const [defaultScrollTop, setDefaultScrollTop] = useState<number | undefined>(
-    100
+    0
   );
 
   useEffect(() => {
@@ -324,8 +332,8 @@ const List: React.FC<ListProps> = () => {
     });
   };
 
-  const onStartIndexChange = (visibleItemIndex: number) => {
-    console.log('visibleItemIndex: ', visibleItemIndex);
+  const onStartIndexChange = (visibleItemIndex: number, startIndex: number) => {
+    console.log(visibleItemIndex, startIndex);
   };
 
   const onVisibleChange = () => {

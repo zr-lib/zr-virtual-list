@@ -23,33 +23,33 @@ npm i zr-virtual-list
 - itemKey: string; // 唯一 key
 - dataList: any[]; // 列表数据
   children: (item: any, index: number) => React.ReactNode;
-- defaultStartIndex?: number; // 默认开始切割的位置
+- defaultStartIndex?: number; // 默认第一个可视的item下标
 - defaultScrollTop?: number; // 默认的滚动位置
 - className?: string;
 - renderCount?: number; // 一次渲染的数量
 - onScroll?: (scrollTop: number) => void; // 滚动回调
 - getScrollContainer?: () => HTMLElement; // 滚动容器，默认 body
-- onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回开始切割的位置
+- onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回 itemIndex, startIndex
 
 ```typescript
 export interface VirtualListProps {
   itemKey: string; // 唯一 key
   dataList: any[]; // 列表数据
   children: (item: any, index: number) => React.ReactNode;
-  defaultStartIndex?: number; // 默认开始切割的位置
+  defaultStartIndex?: number; // 默认第一个可视的item下标
   defaultScrollTop?: number; // 默认的滚动位置
   className?: string;
   renderCount?: number; // 一次渲染的数量
   onScroll?: (scrollTop: number) => void; // 滚动回调
   getScrollContainer?: () => HTMLElement; // 滚动容器，默认 body
-  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回开始切割的位置
+  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // 返回 itemIndex, startIndex
 }
 ```
 
 
 ## 用法
 
-在线例子：[zr-virtual-list example](zero9527.github.io/zr-virtual-list)
+在线例子：[zr-virtual-list example](https://zero9527.github.io/zr-virtual-list)
 
 组件：[example\List\index.tsx](./example/List/index.tsx)
 
@@ -57,6 +57,7 @@ export interface VirtualListProps {
 // example\List\index.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import VirtualList from 'zr-virtual-list';
+// import VirtualList from '../src';
 import RadioGroup from '../RadioGroup';
 import './styles.less';
 
@@ -80,7 +81,7 @@ const List: React.FC<ListProps> = () => {
     number | undefined
   >(666);
   const [defaultScrollTop, setDefaultScrollTop] = useState<number | undefined>(
-    100
+    0
   );
 
   useEffect(() => {
@@ -122,8 +123,8 @@ const List: React.FC<ListProps> = () => {
     });
   };
 
-  const onStartIndexChange = (visibleItemIndex: number) => {
-    console.log('visibleItemIndex: ', visibleItemIndex);
+  const onStartIndexChange = (visibleItemIndex: number, startIndex: number) => {
+    console.log(visibleItemIndex, startIndex);
   };
 
   const onVisibleChange = () => {
@@ -132,30 +133,33 @@ const List: React.FC<ListProps> = () => {
 
   return (
     <>
-      <p>dataLength: {data.length}</p>
-      <RadioGroup
-        name="renderCount"
-        value={renderCount}
-        setValue={setRenderCount}
-        dataList={countList}
-      />
-      <RadioGroup
-        name="defaultStartIndex"
-        value={defaultStartIndex}
-        setValue={setDefaultStartIndex}
-        dataList={indexList}
-      />
-      <RadioGroup
-        name="defaultScrollTop"
-        value={defaultScrollTop}
-        setValue={setDefaultScrollTop}
-        dataList={scrollList}
-      />
-      <p>
-        <button onClick={onVisibleChange}>
-          {visible ? 'Hide List' : 'Show List'}
-        </button>
-      </p>
+      <div className="header">
+        <h2 className="title">zr-virtual-list example</h2>
+        <p>dataLength: {data.length}</p>
+        <RadioGroup
+          name="renderCount"
+          value={renderCount}
+          setValue={setRenderCount}
+          dataList={countList}
+        />
+        <RadioGroup
+          name="defaultStartIndex"
+          value={defaultStartIndex}
+          setValue={setDefaultStartIndex}
+          dataList={indexList}
+        />
+        <RadioGroup
+          name="defaultScrollTop"
+          value={defaultScrollTop}
+          setValue={setDefaultScrollTop}
+          dataList={scrollList}
+        />
+        <p>
+          <button onClick={onVisibleChange}>
+            {visible ? 'Hide List' : 'Show List'}
+          </button>
+        </p>
+      </div>
       {visible && (
         <VirtualList
           itemKey="id"
@@ -164,9 +168,6 @@ const List: React.FC<ListProps> = () => {
           renderCount={renderCount}
           defaultScrollTop={defaultScrollTop}
           defaultStartIndex={defaultStartIndex}
-          getScrollContainer={() =>
-            document.querySelector('.scroll-container')! as HTMLElement
-          }
           onScroll={onScroll}
           onStartIndexChange={onStartIndexChange}
         >

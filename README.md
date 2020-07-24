@@ -22,33 +22,33 @@ For the first rendering, if `defaultScrollTop`/`defaultStartIndex` exists at the
 - itemKey: string; // uniqu key
 - dataList: any[]; // data for VirtualList
   children: (item: any, index: number) => React.ReactNode;
-- defaultStartIndex?: number; // Default starting position
-- defaultScrollTop?: number; // Default scroll position
+- defaultStartIndex?: number; // the first visible item index by default
+- defaultScrollTop?: number; // default scrollTop
 - className?: string;
-- renderCount?: number; // Number of renders at one time
-- onScroll?: (scrollTop: number) => void; // Scroll callback
-- getScrollContainer?: () => HTMLElement; // Scroll container, default body
-- onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // Return to the starting position
+- renderCount?: number; // number of renders at one time
+- onScroll?: (scrollTop: number) => void; // scroll callback
+- getScrollContainer?: () => HTMLElement; // scroll container, default body
+- onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // startIndex change callback
 
 ```typescript
 export interface VirtualListProps {
   itemKey: string; // uniqu key
   dataList: any[]; // data for VirtualList
   children: (item: any, index: number) => React.ReactNode;
-  defaultStartIndex?: number; // Default starting position
-  defaultScrollTop?: number; // Default scroll position
+  defaultStartIndex?: number; // the first visible item index by default
+  defaultScrollTop?: number; // default scrollTop
   className?: string;
-  renderCount?: number; // Number of renders at one time
-  onScroll?: (scrollTop: number) => void; // Scroll callback
-  getScrollContainer?: () => HTMLElement; // Scroll container, default body
-  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // Return to the starting position
+  renderCount?: number; // number of renders at one time
+  onScroll?: (scrollTop: number) => void; // scroll callback
+  getScrollContainer?: () => HTMLElement; // scroll container, default body
+  onStartIndexChange?: (visibleItemIndex: number, startIndex: number) => void; // startIndex change callback
 }
 ```
 
 
 ## Usage
 
-online example: [zr-virtual-list example](zero9527.github.io/zr-virtual-list)
+online example: [zr-virtual-list example](https://zero9527.github.io/zr-virtual-list)
 
 component: [example\List\index.tsx](./example/List/index.tsx)
 
@@ -57,6 +57,7 @@ component: [example\List\index.tsx](./example/List/index.tsx)
 // example\List\index.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import VirtualList from 'zr-virtual-list';
+// import VirtualList from '../src';
 import RadioGroup from '../RadioGroup';
 import './styles.less';
 
@@ -80,7 +81,7 @@ const List: React.FC<ListProps> = () => {
     number | undefined
   >(666);
   const [defaultScrollTop, setDefaultScrollTop] = useState<number | undefined>(
-    100
+    0
   );
 
   useEffect(() => {
@@ -122,8 +123,8 @@ const List: React.FC<ListProps> = () => {
     });
   };
 
-  const onStartIndexChange = (visibleItemIndex: number) => {
-    console.log('visibleItemIndex: ', visibleItemIndex);
+  const onStartIndexChange = (visibleItemIndex: number, startIndex: number) => {
+    console.log(visibleItemIndex, startIndex);
   };
 
   const onVisibleChange = () => {
@@ -132,30 +133,33 @@ const List: React.FC<ListProps> = () => {
 
   return (
     <>
-      <p>dataLength: {data.length}</p>
-      <RadioGroup
-        name="renderCount"
-        value={renderCount}
-        setValue={setRenderCount}
-        dataList={countList}
-      />
-      <RadioGroup
-        name="defaultStartIndex"
-        value={defaultStartIndex}
-        setValue={setDefaultStartIndex}
-        dataList={indexList}
-      />
-      <RadioGroup
-        name="defaultScrollTop"
-        value={defaultScrollTop}
-        setValue={setDefaultScrollTop}
-        dataList={scrollList}
-      />
-      <p>
-        <button onClick={onVisibleChange}>
-          {visible ? 'Hide List' : 'Show List'}
-        </button>
-      </p>
+      <div className="header">
+        <h2 className="title">zr-virtual-list example</h2>
+        <p>dataLength: {data.length}</p>
+        <RadioGroup
+          name="renderCount"
+          value={renderCount}
+          setValue={setRenderCount}
+          dataList={countList}
+        />
+        <RadioGroup
+          name="defaultStartIndex"
+          value={defaultStartIndex}
+          setValue={setDefaultStartIndex}
+          dataList={indexList}
+        />
+        <RadioGroup
+          name="defaultScrollTop"
+          value={defaultScrollTop}
+          setValue={setDefaultScrollTop}
+          dataList={scrollList}
+        />
+        <p>
+          <button onClick={onVisibleChange}>
+            {visible ? 'Hide List' : 'Show List'}
+          </button>
+        </p>
+      </div>
       {visible && (
         <VirtualList
           itemKey="id"
@@ -164,9 +168,6 @@ const List: React.FC<ListProps> = () => {
           renderCount={renderCount}
           defaultScrollTop={defaultScrollTop}
           defaultStartIndex={defaultStartIndex}
-          getScrollContainer={() =>
-            document.querySelector('.scroll-container')! as HTMLElement
-          }
           onScroll={onScroll}
           onStartIndexChange={onStartIndexChange}
         >

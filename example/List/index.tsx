@@ -22,9 +22,9 @@ const List: React.FC<ListProps> = () => {
   const [renderCount, setRenderCount] = useState(20);
   const [defaultStartIndex, setDefaultStartIndex] = useState<
     number | undefined
-  >();
+  >(666);
   const [defaultScrollTop, setDefaultScrollTop] = useState<number | undefined>(
-    100
+    0
   );
 
   useEffect(() => {
@@ -66,8 +66,8 @@ const List: React.FC<ListProps> = () => {
     });
   };
 
-  const onStartIndexChange = (visibleItemIndex: number) => {
-    console.log('visibleItemIndex: ', visibleItemIndex);
+  const onStartIndexChange = (visibleItemIndex: number, startIndex: number) => {
+    // console.log(visibleItemIndex, startIndex);
   };
 
   const onVisibleChange = () => {
