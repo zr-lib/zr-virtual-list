@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useLayoutEffect,
+} from 'react';
 import { VirtualListProps } from './index.d';
 import { isNumber, transform_scrollTop_itemIndex } from './utils';
 import './styles.css';
@@ -72,10 +78,10 @@ const VirtualList: React.FC<VirtualListProps> = ({
     }
   }, [defaultStartIndex]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (Array.isArray(dataList)) {
       if (initTimer.current) clearTimeout(initTimer.current);
-      initTimer.current = setTimeout(() => init(), 10);
+      initTimer.current = setTimeout(() => init(), 16);
     }
 
     return () => {
@@ -140,7 +146,7 @@ const VirtualList: React.FC<VirtualListProps> = ({
     }
 
     // 设置滚动容器 scrollTop
-    setTimeout(() => setContainerScrollTop(), 0);
+    setTimeout(() => setContainerScrollTop(), 16);
   };
 
   // 根据 startIndex 切割需要渲染的部分
