@@ -2,7 +2,11 @@
 
 React 长列表虚拟滚动
 
+在线例子：[zr-virtual-list example](https://zero9527.github.io/zr-virtual-list)
+![效果图](https://s1.ax1x.com/2020/07/24/UvQ49U.gif)
+
 ## 依赖
+
 React: 16.8.0+
 
 源码使用了 `React Hook`
@@ -13,7 +17,6 @@ React: 16.8.0+
 npm i zr-virtual-list
 ```
 
-
 ## 参数
 
 首次渲染，如果 `defaultScrollTop`/`defaultStartIndex` 同时存在，优先使用 `defaultScrollTop`；之后哪个变化使用哪个
@@ -21,7 +24,7 @@ npm i zr-virtual-list
 - itemKey: string; // 唯一 key
 - dataList: any[]; // 列表数据
   children: (item: any, index: number) => React.ReactNode;
-- defaultStartIndex?: number; // 默认第一个可视的item下标
+- defaultStartIndex?: number; // 默认第一个可视的 item 下标
 - defaultScrollTop?: number; // 默认的滚动位置
 - className?: string;
 - renderCount?: number; // 一次渲染的数量
@@ -44,7 +47,6 @@ export interface VirtualListProps {
 }
 ```
 
-
 ## 实现
 
 当数据一次性渲染很多(`1000`,`10000`条或更多)，会导致页面空白时间比较大、且操作会卡顿，影响体验，一般的解决方案就是 **分页**，但是这个需要额外的处理，要么按页码从接口获取，要么自己对数据切割。。。
@@ -58,6 +60,7 @@ export interface VirtualListProps {
 ### 渲染结构
 
 分为三部分实现
+
 - 前占位
 - 渲染内容
 - 后占位
@@ -66,11 +69,11 @@ export interface VirtualListProps {
 
 1. 前占位
 
-    根据 `startIndex` 与 `item的平均高度` 算出来的；`item的平均高度` 由滚动容器的滚动高度与渲染数量 `scrollHeight/renderCount` 得到；如果没有设置滚动容器 `getScrollContainer` 的话，默认 `body` 滚动
+   根据 `startIndex` 与 `item的平均高度` 算出来的；`item的平均高度` 由滚动容器的滚动高度与渲染数量 `scrollHeight/renderCount` 得到；如果没有设置滚动容器 `getScrollContainer` 的话，默认 `body` 滚动
 
 2. 后占位
 
-    未渲染的数量 * 每个 `item` 的高度 = **前占位** + **后占位**
+   未渲染的数量 \* 每个 `item` 的高度 = **前占位** + **后占位**
 
 ```ts
 // 前后占位的高度
@@ -92,15 +95,13 @@ const getPlaceholderHegiht = useCallback(
 
 #### 渲染的内容
 
-在线例子：[zr-virtual-list example](zero9527.github.io/zr-virtual-list)
-
 > 经过小测，`设置滚动容器`、`data长度=10000`、`renderCount=20` 时，大概快速滑动（手机端，多次滑动叠加每秒`50`个左右吧，电脑上鼠标拉着滚动条滑动还没出现过），偶尔会出现轻微的空白问题；实际上渲染时间与数据长度无关，与每个`item` 的渲染有关，通过调整 `renderCount` 也可以改善
 
-1. 根据 `defaultStartIndex`、`defaultScrollTop` 渲染 `renderCount` 的数量；
+1. 根据 `defaultStartIndex`、`defaultScrollTop` 渲染 `renderCount` 的数量，没有的话默认 `0`；
 
-2. 通过 `transform_scrollTop_itemIndex` 方法转换得到 `scrollTop`、`itemIndex`，然后 `onRenderHandler` 方法渲染，再接着设置滚动容器的 `scrollTop`；
+2. `defaultStartIndex`、`defaultScrollTop` 通过 `transform_scrollTop_itemIndex` 方法转换相互转化得到对应值，然后 `onRenderHandler` 方法渲染，再接着设置滚动容器的 `scrollTop`；
 
-3. 首次渲染，将 `startIndex` 的那个 `item` 显示在顶部，为了防止快速滑动导致的空白问题，此时屏幕可是区域上下一定距离内都是由内容的
+3. 首次渲染，将 `startIndex` 的那个 `item` 显示在顶部，为了防止快速滑动导致的空白问题，此时屏幕可视区域上下一定距离内都是有内容的，根据设置的 `renderCount` 有所差异
 
 ```ts
 // src\index.tsx
@@ -148,7 +149,7 @@ const onRenderHandler = useCallback(
 
 ### 滚动与显示
 
-1. 根据 **滚动容器** `scrollTop`，获取对应的 `itemIndex`（在`dataList`里的序号）
+1. 根据 **滚动容器** `scrollTop`，获取对应的 `itemIndex`（在`dataList`里的序号）;如下 `transform_scrollTop_itemIndex` 方法
 
 2. 根据 `itemIndex`（在 `dataList` 里的下标），获取对应的 **滚动容器** `scrollTop`
 
@@ -182,6 +183,7 @@ const startIndexChange = (itemIndex: number) => {
 ```
 
 transform_scrollTop_itemIndex
+
 ```ts
 // src\utils\index.ts
 // 获取对应的数值 scrollTop=>itemIndex，startIndex=>scrollTop，
@@ -255,12 +257,11 @@ const setScrollTopHandler = () => {
 };
 ```
 
-
 ## 用法
 
-在线例子：[zr-virtual-list example](zero9527.github.io/zr-virtual-list)
+在线例子：[zr-virtual-list example](https://zero9527.github.io/zr-virtual-list)
 
-组件：[example\List\index.tsx]("./example/List/index.tsx")
+组件：[example\List\index.tsx](https://github.com/zero9527/zr-virtual-list/blob/master/example/List/index.tsx)
 
 ```jsx
 // example\List\index.tsx
