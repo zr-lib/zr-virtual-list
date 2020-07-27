@@ -23,7 +23,7 @@ export interface VirtualListProps {
 /**
  * VirtualList
  * @description Only render the number of renderCount each time
- * @param {*} props.itemKey: string; // uniqu key
+ * @param {*} props.itemKey: string; // unique key
  * @param {*} props.dataList: any[]; // data for VirtualList
  * @param {*} props.children: (item: any, index: number) => React.ReactNode;
  * @param {*} props.defaultStartIndex?: number; // the first visible item index by default

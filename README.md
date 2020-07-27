@@ -19,7 +19,7 @@ npm i zr-virtual-list
 ## Params
 For the first rendering, if `defaultScrollTop`/`defaultStartIndex` exists at the same time, `defaultScrollTop` is used first; after that, the changed one is used
 
-- itemKey: string; // uniqu key
+- itemKey: string; // unique key
 - dataList: any[]; // data for VirtualList
   children: (item: any, index: number) => React.ReactNode;
 - defaultStartIndex?: number; // the first visible item index by default
@@ -32,7 +32,7 @@ For the first rendering, if `defaultScrollTop`/`defaultStartIndex` exists at the
 
 ```typescript
 export interface VirtualListProps {
-  itemKey: string; // uniqu key
+  itemKey: string; // unique key
   dataList: any[]; // data for VirtualList
   children: (item: any, index: number) => React.ReactNode;
   defaultStartIndex?: number; // the first visible item index by default
