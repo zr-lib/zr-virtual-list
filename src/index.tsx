@@ -74,7 +74,7 @@ const VirtualList: React.FC<VirtualListProps> = ({
 
   useEffect(() => {
     if (typeof defaultStartIndex === 'number') {
-      startIndex.current = defaultStartIndex;
+      startIndex.current = getValidStartIndex(defaultStartIndex);
     }
   }, [defaultStartIndex]);
 
@@ -93,7 +93,7 @@ const VirtualList: React.FC<VirtualListProps> = ({
   const init = () => {
     scrollContainer.current = getScrollWrapper();
     // 方便后续计算 itemScrollHeight.current
-    onRenderHandler(startIndex.current || 0);
+    onRenderHandler(getValidStartIndex(startIndex.current || 0));
 
     let offset = 0;
     if (!getScrollContainer && virtualList.current) {
@@ -130,15 +130,15 @@ const VirtualList: React.FC<VirtualListProps> = ({
       // defaultScrollTop 转化为 itemIndex
       const transform_itemIndex = transform_scrollTop_itemIndex({
         itemScrollHeight: itemScrollHeight.current,
-        scrollTop: defaultScrollTop,
+        scrollTop: defaultScrollTop || 0,
       });
-      startIndex.current = transform_itemIndex || 0;
+      startIndex.current = getValidStartIndex(transform_itemIndex || 0);
       onRenderHandler(startIndex.current);
     } else if (use_defaultStartIndex) {
       // defaultStartIndex 转化为 scrollTop
       const transform_scrollTop = transform_scrollTop_itemIndex({
         itemScrollHeight: itemScrollHeight.current,
-        startIndex: defaultStartIndex,
+        startIndex: getValidStartIndex(defaultStartIndex || 0),
       });
       scrollTop.current = transform_scrollTop || 0;
     } else {
@@ -147,6 +147,15 @@ const VirtualList: React.FC<VirtualListProps> = ({
 
     // 设置滚动容器 scrollTop
     setTimeout(() => setContainerScrollTop(), 16);
+  };
+
+  // 返回有效的 startIndex, 超出dataList.length则返回最大值
+  const getValidStartIndex = (_startIndex: number) => {
+    if (_startIndex > dataList.length) {
+      console.warn(`[defaultStartIndex] larger than [dataList.length]!`);
+      return dataList.length;
+    }
+    return _startIndex;
   };
 
   // 根据 startIndex 切割需要渲染的部分
@@ -218,7 +227,9 @@ const VirtualList: React.FC<VirtualListProps> = ({
     const leftCount = Math.floor(renderCount / 4);
     if (itemIndex - leftCount === startIndex.current) return;
 
-    startIndex.current = itemIndex > leftCount ? itemIndex - leftCount : 0;
+    startIndex.current = getValidStartIndex(
+      itemIndex > leftCount ? itemIndex - leftCount : 0
+    );
 
     setPlaceholderHeight();
     onRenderHandler(startIndex.current);
