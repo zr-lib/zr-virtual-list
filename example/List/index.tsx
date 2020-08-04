@@ -80,25 +80,28 @@ const List: React.FC<ListProps> = () => {
         <h2 className="title">zr-virtual-list example</h2>
         <p>dataLength: {data.length}</p>
         <RadioGroup
+          className="render_count"
           name="renderCount"
           value={renderCount}
           setValue={setRenderCount}
           dataList={countList}
         />
         <RadioGroup
+          className="start_index"
           name="defaultStartIndex"
           value={defaultStartIndex}
           setValue={setDefaultStartIndex}
           dataList={indexList}
         />
         <RadioGroup
+          className="scroll_top"
           name="defaultScrollTop"
           value={defaultScrollTop}
           setValue={setDefaultScrollTop}
           dataList={scrollList}
         />
         <p>
-          <button onClick={onVisibleChange}>
+          <button className="btn-ctrl" onClick={onVisibleChange}>
             {visible ? 'Hide List' : 'Show List'}
           </button>
         </p>

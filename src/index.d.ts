@@ -8,7 +8,7 @@ export interface TransformProps {
 }
 
 export interface VirtualListProps {
-  itemKey: string; // uniqu key
+  itemKey: string; // unique key
   dataList: any[]; // data for VirtualList
   children: (item: any, index: number) => React.ReactNode;
   defaultStartIndex?: number; // the first visible item index by default
