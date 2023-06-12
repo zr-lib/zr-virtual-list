@@ -18,7 +18,7 @@ jobs:
       - run: npm run build:lib
 
   publish-npm:
-    needs: build
+    needs: install-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
